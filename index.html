@@ -74,7 +74,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .nav-badge{margin-left:auto;background:var(--accent);color:#0C0F0A;border-radius:99px;font-size:0.62rem;font-weight:700;padding:1px 6px}
 
 /* MAIN */
-.main{display:flex;flex-direction:column;min-height:100vh}
+.main{display:flex;flex-direction:column;height:100vh;overflow:hidden}
 
 /* TOPBAR */
 .topbar{padding:20px 32px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface);backdrop-filter:blur(10px);position:sticky;top:0;z-index:10}
@@ -83,16 +83,16 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .streak-badge{display:flex;align-items:center;gap:6px;background:var(--gold-dim);border:1px solid rgba(212,168,71,0.3);border-radius:99px;padding:6px 14px;font-size:0.82rem;color:var(--gold);font-weight:600}
 
 /* CONTENT */
-.content{flex:1;padding:32px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.content{flex:1;padding:32px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;display:flex;flex-direction:column}
 
 /* PANELS */
-.panel{display:none;animation:fadeIn 0.3s ease}
-.panel.active{display:block}
+.panel{display:none;animation:fadeIn 0.3s ease;flex:1;min-height:0}
+.panel.active{display:flex;flex-direction:column}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
 /* CHAT / AI TUTOR */
-.chat-layout{display:flex;flex-direction:column;height:calc(100vh - 130px);gap:0;overflow:hidden}
-.chat-messages{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 0 16px;display:flex;flex-direction:column;gap:16px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;min-height:0}
+.chat-layout{display:flex;flex-direction:column;flex:1;min-height:0;gap:0;overflow:hidden}
+.chat-messages{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 0 16px;display:flex;flex-direction:column;gap:16px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 
 .msg{display:flex;gap:12px;align-items:flex-start;animation:fadeIn 0.3s ease}
 .msg.user{flex-direction:row-reverse}
@@ -237,7 +237,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
   /* LAYOUT */
   .app{grid-template-columns:1fr}
   .sidebar{display:none}
-  .main{padding-bottom:80px}
+  .main{height:calc(100dvh - 72px);padding-bottom:0;overflow:hidden}
 
   /* TOPBAR — compact sur mobile */
   .topbar{
@@ -257,13 +257,8 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
   /* CONTENT */
   .content{padding:12px;overflow-x:hidden;overflow-y:auto}
 
-  /* CHAT — fix scroll mobile */
-  .chat-layout{
-    height:calc(100dvh - 56px - 72px - 20px);
-    display:flex;
-    flex-direction:column;
-    overflow:hidden;
-  }
+  /* CHAT — flex gère la hauteur automatiquement */
+  .chat-layout{flex:1;min-height:0}
   .chat-messages{
     flex:1;
     min-height:0;
