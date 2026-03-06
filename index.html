@@ -444,6 +444,9 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
   <button class="nav-item" onclick="showPanel('flashcards')" id="nav-flashcards">
     <div class="nav-icon">🃏</div> Flashcards
   </button>
+  <button class="nav-item" onclick="showPanel('compte')" id="nav-compte">
+    <div class="nav-icon">👤</div> Mon Compte
+  </button>
 </aside>
 
 <!-- MAIN -->
@@ -549,6 +552,11 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
     <!-- FLASHCARDS PANEL -->
     <div class="panel" id="panel-flashcards">
       <div id="fc-panel-inner"></div>
+    </div>
+
+    <!-- COMPTE PANEL -->
+    <div class="panel" id="panel-compte">
+      <div id="compte-inner"></div>
     </div>
 
   </div>
@@ -1006,13 +1014,14 @@ function setDirection(dir) {
 }
 
 // ===================== NAVIGATION =====================
-const PANELS = ['chat','lessons','quiz','vocab','flashcards'];
+const PANELS = ['chat','lessons','quiz','vocab','flashcards','compte'];
 const TITLES = {
   chat: ['Professeur IA','Posez n\'importe quelle question en français ou en vietnamien'],
   lessons: ['Programme de leçons','18 leçons progressives · Débutant → Avancé'],
   quiz: ['Quiz & Exercices','Testez votre vocabulaire dans les deux sens'],
   vocab: ['Dictionnaire complet','240 mots · 12 thèmes · FR ↔ VI'],
   flashcards: ['Flashcards','Mémorisez avec la répétition espacée'],
+  compte: ['Mon Compte','Progression, statistiques et paramètres'],
 };
 
 function showPanel(name) {
@@ -1030,7 +1039,7 @@ function showPanel(name) {
   if (name === 'quiz') { buildQuizSet(); renderQuiz(); }
   if (name === 'lessons') renderLessons();
   if (name === 'flashcards') renderFlashcards();
-  // Scroll to top on mobile
+  if (name === 'compte') renderCompte();
   document.querySelector('.content').scrollTop = 0;
 }
 
@@ -1477,19 +1486,18 @@ let authMode = 'login';
 
 // Init auth
 async function initAuth() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session?.user) {
-    currentUser = session.user;
+  // Gérer le retour après connexion Google (hash dans l'URL)
+  const { data: { session: sessionFromUrl } } = await sb.auth.getSession();
+
+  if (sessionFromUrl?.user) {
+    currentUser = sessionFromUrl.user;
+    document.getElementById('auth-overlay').style.display = 'none';
     updateUserBadge();
     await loadUserData();
-  } else {
-    // Afficher modal après 1s
-    setTimeout(() => {
-      document.getElementById('auth-overlay').style.display = 'flex';
-    }, 1000);
+    return;
   }
 
-  // Écouter les changements d'auth
+  // Écouter les changements d'auth (retour OAuth Google)
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
       currentUser = session.user;
@@ -1501,6 +1509,13 @@ async function initAuth() {
       updateUserBadge();
     }
   });
+
+  // Afficher modal après 1.5s seulement si pas connecté
+  setTimeout(() => {
+    if (!currentUser) {
+      document.getElementById('auth-overlay').style.display = 'flex';
+    }
+  }, 1500);
 }
 
 function switchAuthTab(mode, btn) {
@@ -1659,6 +1674,78 @@ async function saveLessonDone(lessonNumber) {
 updateXPBar();
 renderLessons();
 initAuth();
+function renderCompte() {
+  const el = document.getElementById('compte-inner');
+  const wordsKnown = Object.values(state.wordStates).filter(s => s === 'known').length;
+  const wordsLearning = Object.values(state.wordStates).filter(s => s === 'learn').length;
+  const lessonsCount = getLessons().filter(l => l.done).length;
+  const needed = state.level * 100;
+
+  if (!currentUser) {
+    el.innerHTML = `
+      <div style="text-align:center;padding:60px 20px">
+        <div style="font-size:4rem;margin-bottom:16px">👤</div>
+        <div style="font-family:var(--font-display);font-size:1.6rem;font-weight:600;margin-bottom:8px">Pas encore connecté</div>
+        <div style="color:var(--text2);font-size:0.9rem;margin-bottom:28px">Connectez-vous pour sauvegarder votre progression</div>
+        <button class="btn-primary" onclick="document.getElementById('auth-overlay').style.display='flex'" style="margin:0 auto">Se connecter / S'inscrire</button>
+      </div>`;
+    return;
+  }
+
+  const email = currentUser.email || '';
+  const initial = email[0]?.toUpperCase() || '?';
+  const since = new Date(currentUser.created_at).toLocaleDateString('fr-FR', {day:'numeric',month:'long',year:'numeric'});
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:28px">
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center">
+        <div style="font-family:var(--font-display);font-size:2.5rem;font-weight:700;color:var(--accent2)">${state.level}</div>
+        <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-top:4px">Niveau</div>
+        <div style="height:4px;background:var(--surface);border-radius:99px;margin-top:10px;overflow:hidden">
+          <div style="height:100%;width:${Math.round(state.xp/needed*100)}%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px"></div>
+        </div>
+        <div style="font-size:0.72rem;color:var(--text3);margin-top:6px">${state.xp} / ${needed} XP</div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center">
+        <div style="font-family:var(--font-display);font-size:2.5rem;font-weight:700;color:var(--gold)">${state.streak}</div>
+        <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-top:4px">🔥 Jours de suite</div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center">
+        <div style="font-family:var(--font-display);font-size:2.5rem;font-weight:700;color:var(--accent2)">${wordsKnown}</div>
+        <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-top:4px">✓ Mots maîtrisés</div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center">
+        <div style="font-family:var(--font-display);font-size:2.5rem;font-weight:700;color:var(--blue)">${wordsLearning}</div>
+        <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-top:4px">⟳ En apprentissage</div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center">
+        <div style="font-family:var(--font-display);font-size:2.5rem;font-weight:700;color:var(--accent2)">${lessonsCount}</div>
+        <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-top:4px">📖 Leçons faites</div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center">
+        <div style="font-family:var(--font-display);font-size:2.5rem;font-weight:700;color:var(--accent2)">${state.quizResults.total}</div>
+        <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-top:4px">🎯 Questions répondues</div>
+      </div>
+    </div>
+
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
+        <div style="width:52px;height:52px;border-radius:50%;background:var(--accent-dim);border:2px solid rgba(143,190,60,0.4);display:grid;place-items:center;font-family:var(--font-display);font-size:1.4rem;font-weight:700;color:var(--accent2)">${initial}</div>
+        <div>
+          <div style="font-weight:600;font-size:1rem">${email}</div>
+          <div style="font-size:0.78rem;color:var(--text3);margin-top:2px">Membre depuis le ${since}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn-secondary" onclick="setDirection('fr-vi');showPanel('chat')" style="font-size:0.8rem">🇫🇷→🇻🇳 Apprendre le vietnamien</button>
+        <button class="btn-secondary" onclick="setDirection('vi-fr');showPanel('chat')" style="font-size:0.8rem">🇻🇳→🇫🇷 Apprendre le français</button>
+      </div>
+    </div>
+
+    <button onclick="logout()" style="background:var(--red-dim);border:1px solid rgba(224,90,74,0.3);color:var(--red);border-radius:8px;padding:12px 20px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;transition:all 0.2s ease;width:100%">
+      Se déconnecter
+    </button>`;
+}
 </script>
 <!-- BOTTOM NAV (mobile) -->
 <nav class="bottom-nav">
@@ -1677,6 +1764,9 @@ initAuth();
     </button>
     <button class="bn-item" id="bn-flashcards" onclick="showPanel('flashcards')">
       <span class="bn-icon">🃏</span>Cartes
+    </button>
+    <button class="bn-item" id="bn-compte" onclick="showPanel('compte')">
+      <span class="bn-icon">👤</span>Compte
     </button>
   </div>
 </nav>
