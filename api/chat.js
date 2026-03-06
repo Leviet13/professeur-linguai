@@ -1,10 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -16,17 +9,6 @@ export default async function handler(req, res) {
   try {
     let body = req.body;
     if (typeof body === 'string') body = JSON.parse(body);
-
-    // Sauvegarder le message si utilisateur connecté
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (token && body.save_history) {
-      const { data: { user } } = await supabase.auth.getUser(token);
-      if (user) {
-        await supabase.from('chat_history').insert([
-          { user_id: user.id, role: 'user', content: body.messages[0].content, direction: body.direction },
-        ]);
-      }
-    }
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -45,20 +27,8 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
-    const aiResponse = data.choices[0].message.content;
-
-    // Sauvegarder la réponse IA si utilisateur connecté
-    if (token && body.save_history) {
-      const { data: { user } } = await supabase.auth.getUser(token);
-      if (user) {
-        await supabase.from('chat_history').insert([
-          { user_id: user.id, role: 'assistant', content: aiResponse, direction: body.direction },
-        ]);
-      }
-    }
-
     return res.status(200).json({
-      content: [{ text: aiResponse }]
+      content: [{ text: data.choices[0].message.content }]
     });
 
   } catch (error) {
