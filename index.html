@@ -1852,91 +1852,124 @@ function speakAnswer(text, lang) {
 
 let currentMicAnswer = '';
 let isListening = false;
-let micPopup = null;
+let micBlobUrl = null;
 
-// Page HTML du popup micro — contexte frais a chaque fois
 function getMicPopupHTML(lang) {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8">
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Micro</title>
 <style>
-  body{margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#1a2410;color:#e8f0d8;font-family:sans-serif;gap:16px}
-  #status{font-size:1.1rem;text-align:center;padding:0 20px}
-  #result{font-size:1.4rem;font-weight:bold;color:#8fbe3c;text-align:center;min-height:40px;padding:0 20px}
-  .mic-circle{width:80px;height:80px;border-radius:50%;background:#8fbe3c;display:flex;align-items:center;justify-content:center;font-size:2rem;cursor:pointer;transition:all 0.2s;border:none}
-  .mic-circle.listening{background:#e05a4a;animation:pulse 0.6s infinite alternate}
-  @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.1)}}
-</style></head><body>
-<div id="status">Appuyez pour parler</div>
-<button class="mic-circle" id="micBtn" onclick="startListen()">mic</button>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#1a2410;color:#e8f0d8;font-family:sans-serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;position:relative}
+#close{position:absolute;top:12px;right:14px;background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer;line-height:1}
+#status{font-size:0.95rem;color:#aaa;text-align:center;padding:0 16px;min-height:20px}
+#result{font-size:1.3rem;font-weight:700;color:#8fbe3c;text-align:center;min-height:36px;padding:0 16px}
+#micBtn{width:80px;height:80px;border-radius:50%;background:#8fbe3c;border:none;font-size:2.2rem;cursor:pointer;transition:all 0.2s}
+#micBtn.on{background:#e05a4a;animation:p 0.6s infinite alternate}
+#retryBtn{background:none;border:1px solid #aaa;color:#aaa;padding:6px 16px;border-radius:20px;cursor:pointer;font-size:0.85rem;display:none}
+@keyframes p{from{transform:scale(1)}to{transform:scale(1.08)}}
+</style></head>
+<body>
+<button id="close" onclick="window.close()">x</button>
+<div id="status">Appuyez sur le micro</div>
+<button id="micBtn" onclick="toggle()">mic</button>
 <div id="result"></div>
+<button id="retryBtn" onclick="startRec()">Reessayer</button>
 <script>
-  const lang = '${lang}';
-  let rec = null;
-  function startListen() {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { document.getElementById('status').textContent = 'Non supporte'; return; }
-    rec = new SR();
-    rec.lang = lang;
-    rec.continuous = false;
-    rec.interimResults = false;
-    rec.onstart = () => {
-      document.getElementById('micBtn').classList.add('listening');
-      document.getElementById('micBtn').textContent = 'stop';
-      document.getElementById('status').textContent = 'Parlez...';
-    };
-    rec.onresult = (e) => {
-      const t = e.results[0][0].transcript.trim();
-      document.getElementById('result').textContent = t;
-      document.getElementById('status').textContent = 'Entendu !';
-      window.opener.postMessage({type:'mic_result', transcript: t}, '*');
-    };
-    rec.onend = () => {
-      document.getElementById('micBtn').classList.remove('listening');
-      document.getElementById('micBtn').textContent = 'mic';
-      if (!document.getElementById('result').textContent) {
-        document.getElementById('status').textContent = 'Rien entendu, reessayez';
-      } else {
-        setTimeout(() => window.close(), 800);
-      }
-    };
-    rec.onerror = (e) => {
-      document.getElementById('micBtn').classList.remove('listening');
-      document.getElementById('micBtn').textContent = 'mic';
-      document.getElementById('status').textContent = e.error === 'not-allowed' ? 'Autorisez le micro' : 'Erreur: ' + e.error;
-    };
-    rec.start();
-  }
-  // Demarrer auto apres 300ms
-  setTimeout(startListen, 300);
-<\/script><\/body><\/html>`;
+var lang = "${lang}";
+var rec = null;
+var going = false;
+
+function toggle() {
+  if (going) { rec && rec.stop(); return; }
+  startRec();
+}
+
+function startRec() {
+  document.getElementById('retryBtn').style.display = 'none';
+  document.getElementById('result').textContent = '';
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { document.getElementById('status').textContent = 'Non supporte sur ce navigateur'; return; }
+  rec = new SR();
+  rec.lang = lang;
+  rec.continuous = false;
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+  rec.onstart = function() {
+    going = true;
+    document.getElementById('micBtn').classList.add('on');
+    document.getElementById('micBtn').textContent = 'stop';
+    document.getElementById('status').textContent = 'Parlez maintenant...';
+  };
+  rec.onresult = function(e) {
+    var t = e.results[0][0].transcript.trim();
+    document.getElementById('result').textContent = t;
+    document.getElementById('status').textContent = 'Entendu !';
+    try { window.opener.postMessage({type:'mic_result',transcript:t},'*'); } catch(ex){}
+  };
+  rec.onend = function() {
+    going = false;
+    document.getElementById('micBtn').classList.remove('on');
+    document.getElementById('micBtn').textContent = 'mic';
+    var r = document.getElementById('result').textContent;
+    if (!r) {
+      document.getElementById('status').textContent = 'Rien entendu';
+      document.getElementById('retryBtn').style.display = 'inline-block';
+    } else {
+      document.getElementById('status').textContent = 'OK !';
+      setTimeout(function(){ window.close(); }, 1000);
+    }
+  };
+  rec.onerror = function(e) {
+    going = false;
+    document.getElementById('micBtn').classList.remove('on');
+    document.getElementById('micBtn').textContent = 'mic';
+    if (e.error === 'not-allowed') {
+      document.getElementById('status').textContent = 'Autorisez le micro dans votre navigateur';
+    } else if (e.error !== 'aborted') {
+      document.getElementById('status').textContent = 'Erreur: ' + e.error;
+      document.getElementById('retryBtn').style.display = 'inline-block';
+    }
+  };
+  try { rec.start(); }
+  catch(ex) { document.getElementById('status').textContent = 'Erreur demarrage: ' + ex.message; }
+}
+<\/script>
+</body></html>`;
 }
 
 function toggleMic(expectedAnswer) {
   currentMicAnswer = expectedAnswer;
   const lang = state.direction === 'fr-vi' ? 'vi-VN' : 'fr-FR';
 
-  // Fermer ancien popup si ouvert
-  if (micPopup && !micPopup.closed) { micPopup.close(); }
+  // Fermer popup existant
+  if (window._micPopup && !window._micPopup.closed) {
+    window._micPopup.close();
+  }
 
-  // Ouvrir nouveau popup — contexte JS totalement frais, pas de throttling
+  // Revoquer l'ancien blob URL
+  if (micBlobUrl) { URL.revokeObjectURL(micBlobUrl); micBlobUrl = null; }
+
+  // Creer nouveau blob URL frais
   const html = getMicPopupHTML(lang);
   const blob = new Blob([html], {type: 'text/html'});
-  const url = URL.createObjectURL(blob);
-  micPopup = window.open(url, 'mic_popup', 'width=300,height=280,top=100,left=100');
+  micBlobUrl = URL.createObjectURL(blob);
+
+  // Ouvrir popup avec nom unique pour forcer nouvelle fenetre
+  window._micPopup = window.open(micBlobUrl, '_blank', 'width=320,height=320,top=150,left=150,resizable=no');
 
   const s = document.getElementById('mic-status');
   if (s) s.textContent = 'Fenetre micro ouverte...';
 }
 
-// Recevoir le resultat du popup
-window.addEventListener('message', (e) => {
+// Recevoir resultat du popup
+window.addEventListener('message', function(e) {
   if (e.data && e.data.type === 'mic_result') {
     const transcript = e.data.transcript;
     const inp = document.getElementById('quiz-input-field');
     const s = document.getElementById('mic-status');
     if (inp) inp.value = transcript;
     if (s) s.textContent = 'Entendu : ' + transcript;
-    if (micPopup && !micPopup.closed) micPopup.close();
-    setTimeout(() => { if (!state.quizAnswered) checkInput(currentMicAnswer); }, 300);
+    setTimeout(function() { if (!state.quizAnswered) checkInput(currentMicAnswer); }, 300);
   }
 });
 
