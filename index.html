@@ -1857,93 +1857,65 @@ let currentMicAnswer = ''; // Réponse attendue stockée globalement
 function toggleMic(expectedAnswer) {
   if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
     const s = document.getElementById('mic-status');
-    if (s) s.textContent = '❌ Micro non supporté';
+    if (s) s.textContent = 'Micro non supporte';
     return;
   }
   currentMicAnswer = expectedAnswer;
-
   if (isListening) {
-    recognition?.stop();
+    if (recognition) { recognition.onend = null; recognition.onresult = null; recognition.onerror = null; try { recognition.stop(); } catch(e) {} recognition = null; }
+    isListening = false;
+    const b = document.getElementById('mic-btn'); if (b) { b.classList.remove('listening'); b.textContent = 'mic'; }
     return;
   }
-
   startRecognition();
 }
 
 function startRecognition() {
-  // Nettoyer complètement
-  if (recognition) {
-    try { recognition.abort(); } catch(e) {}
-    recognition.onstart = null;
-    recognition.onresult = null;
-    recognition.onend = null;
-    recognition.onerror = null;
-    recognition = null;
-    isListening = false;
-  }
-
+  if (recognition) { recognition.onstart = null; recognition.onresult = null; recognition.onend = null; recognition.onerror = null; recognition = null; }
+  isListening = false;
   setTimeout(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognition = new SpeechRecognition();
-    recognition.lang = state.direction === 'fr-vi' ? 'vi-VN' : 'fr-FR';
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => {
-      isListening = true;
-      const micBtn = document.getElementById('mic-btn');
-      const micStatus = document.getElementById('mic-status');
-      if (micBtn) { micBtn.classList.add('listening'); micBtn.textContent = '⏹'; }
-      if (micStatus) micStatus.textContent = '🎤 Parlez maintenant...';
-      // Auto-stop après 8s pour éviter que le micro reste bloqué
-      setTimeout(() => { if (isListening) recognition?.stop(); }, 8000);
-    };
-
-    recognition.onresult = (e) => {
-      const transcript = e.results[0][0].transcript.trim();
-      const input = document.getElementById('quiz-input-field');
-      const micStatus = document.getElementById('mic-status');
-      if (input) input.value = transcript;
-      if (micStatus) micStatus.textContent = '✓ ' + transcript;
-    };
-
-    recognition.onend = () => {
+    try {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const rec = new SR();
+      rec.lang = state.direction === 'fr-vi' ? 'vi-VN' : 'fr-FR';
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.maxAlternatives = 1;
+      rec.onstart = () => {
+        isListening = true; recognition = rec;
+        const b = document.getElementById('mic-btn'), s = document.getElementById('mic-status');
+        if (b) { b.classList.add('listening'); b.textContent = '\u23f9'; }
+        if (s) s.textContent = '\uD83C\uDFA4 Parlez maintenant...';
+      };
+      rec.onresult = (e) => {
+        const t = e.results[0][0].transcript.trim();
+        const inp = document.getElementById('quiz-input-field'), s = document.getElementById('mic-status');
+        if (inp) inp.value = t;
+        if (s) s.textContent = '\u2713 ' + t;
+      };
+      rec.onend = () => {
+        isListening = false; recognition = null;
+        const b = document.getElementById('mic-btn'); if (b) { b.classList.remove('listening'); b.textContent = '\uD83C\uDFA4'; }
+        const val = document.getElementById('quiz-input-field')?.value?.trim();
+        if (val && currentMicAnswer && !state.quizAnswered) setTimeout(() => { if (!state.quizAnswered) checkInput(currentMicAnswer); }, 400);
+        else if (!val) { const s = document.getElementById('mic-status'); if (s) s.textContent = '\u26A0\uFE0F Rien entendu, reessayez'; }
+      };
+      rec.onerror = (e) => {
+        isListening = false; recognition = null;
+        const b = document.getElementById('mic-btn'); if (b) { b.classList.remove('listening'); b.textContent = '\uD83C\uDFA4'; }
+        const s = document.getElementById('mic-status');
+        const m = { 'no-speech': '\u26A0\uFE0F Rien entendu', 'not-allowed': '\u274C Autorisez le micro', 'aborted': '', 'network': '\u274C Erreur reseau' };
+        if (s && e.error !== 'aborted') s.textContent = m[e.error] || '\u274C ' + e.error;
+      };
+      rec.start();
+    } catch(e) {
       isListening = false;
-      const micBtn = document.getElementById('mic-btn');
-      if (micBtn) { micBtn.classList.remove('listening'); micBtn.textContent = '🎤'; }
-
-      const val = document.getElementById('quiz-input-field')?.value?.trim();
-      if (val && currentMicAnswer) {
-        setTimeout(() => {
-          // Vérifier que le quiz n'a pas déjà avancé
-          if (!state.quizAnswered) checkInput(currentMicAnswer);
-        }, 500);
-      } else {
-        const micStatus = document.getElementById('mic-status');
-        if (micStatus) micStatus.textContent = '⚠️ Rien entendu, réessayez';
-      }
-    };
-
-    recognition.onerror = (e) => {
-      isListening = false;
-      const micBtn = document.getElementById('mic-btn');
-      if (micBtn) { micBtn.classList.remove('listening'); micBtn.textContent = '🎤'; }
-      const micStatus = document.getElementById('mic-status');
-      const msgs = { 'no-speech': '⚠️ Rien entendu', 'not-allowed': '❌ Autorisez le micro', 'aborted': '', 'network': '❌ Erreur réseau' };
-      if (micStatus) micStatus.textContent = msgs[e.error] ?? '❌ ' + e.error;
-    };
-
-    try { recognition.start(); }
-    catch(e) {
-      isListening = false;
-      const micStatus = document.getElementById('mic-status');
-      if (micStatus) micStatus.textContent = '⚠️ Réessayez';
+      const s = document.getElementById('mic-status'); if (s) s.textContent = '\u26A0\uFE0F Reessayez';
     }
-  }, 350);
+  }, 500);
 }
 
-// ===================== INIT =====================
+
 updateXPBar();
 renderLessons();
 initAuth();
