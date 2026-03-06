@@ -1837,7 +1837,7 @@ let isListening = false;
 
 function toggleMic(expectedAnswer) {
   if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    document.getElementById('mic-status').textContent = '❌ Reconnaissance vocale non supportée sur ce navigateur';
+    document.getElementById('mic-status').textContent = '❌ Micro non supporté sur ce navigateur';
     return;
   }
 
@@ -1846,13 +1846,17 @@ function toggleMic(expectedAnswer) {
     return;
   }
 
+  // Toujours créer une nouvelle instance — évite les bugs entre questions
+  if (recognition) {
+    recognition.abort();
+    recognition = null;
+  }
+
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SpeechRecognition();
-
-  // Langue selon la direction
   recognition.lang = state.direction === 'fr-vi' ? 'vi-VN' : 'fr-FR';
   recognition.continuous = false;
-  recognition.interimResults = true;
+  recognition.interimResults = false; // Seulement le résultat final
 
   const micBtn = document.getElementById('mic-btn');
   const micStatus = document.getElementById('mic-status');
@@ -1860,37 +1864,37 @@ function toggleMic(expectedAnswer) {
 
   recognition.onstart = () => {
     isListening = true;
-    micBtn?.classList.add('listening');
-    micBtn.textContent = '⏹';
-    micStatus.textContent = '🎤 Parlez maintenant...';
+    if (micBtn) { micBtn.classList.add('listening'); micBtn.textContent = '⏹'; }
+    if (micStatus) micStatus.textContent = '🎤 Parlez maintenant...';
   };
 
   recognition.onresult = (e) => {
-    const transcript = Array.from(e.results)
-      .map(r => r[0].transcript).join('');
+    const transcript = e.results[0][0].transcript.trim();
     if (input) input.value = transcript;
-    if (e.results[0].isFinal) {
-      micStatus.textContent = '✓ Entendu : ' + transcript;
-    }
+    if (micStatus) micStatus.textContent = '✓ Entendu : ' + transcript;
   };
 
   recognition.onend = () => {
     isListening = false;
-    micBtn?.classList.remove('listening');
-    if (micBtn) micBtn.textContent = '🎤';
-    // Auto-vérifier après 800ms
-    setTimeout(() => {
-      if (input?.value) checkInput(expectedAnswer);
-    }, 800);
+    if (micBtn) { micBtn.classList.remove('listening'); micBtn.textContent = '🎤'; }
+    // Vérifier automatiquement si quelque chose a été capturé
+    const val = document.getElementById('quiz-input-field')?.value?.trim();
+    if (val) {
+      setTimeout(() => checkInput(expectedAnswer), 600);
+    } else {
+      if (micStatus) micStatus.textContent = '⚠️ Rien entendu, réessayez';
+    }
   };
 
   recognition.onerror = (e) => {
     isListening = false;
-    micBtn?.classList.remove('listening');
-    if (micBtn) micBtn.textContent = '🎤';
-    micStatus.textContent = e.error === 'no-speech'
-      ? '⚠️ Aucun son détecté, réessayez'
-      : '❌ Erreur : ' + e.error;
+    if (micBtn) { micBtn.classList.remove('listening'); micBtn.textContent = '🎤'; }
+    const msgs = {
+      'no-speech': '⚠️ Rien entendu, réessayez',
+      'not-allowed': '❌ Autorisez le micro dans votre navigateur',
+      'network': '❌ Erreur réseau',
+    };
+    if (micStatus) micStatus.textContent = msgs[e.error] || '❌ Erreur : ' + e.error;
   };
 
   recognition.start();
