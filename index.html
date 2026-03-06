@@ -1850,58 +1850,96 @@ function speakAnswer(text, lang) {
   setTimeout(() => speakWord(text, lang), 300);
 }
 
-let recognition = null;
-let isListening = false;
 let currentMicAnswer = '';
-// UNE seule instance creee une fois, reutilisee a l'infini
-const _SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-const sharedRec = _SR ? new _SR() : null;
-if (sharedRec) {
-  sharedRec.continuous = false;
-  sharedRec.interimResults = false;
-  sharedRec.maxAlternatives = 1;
-  sharedRec.onstart = () => {
-    isListening = true;
-    const b = document.getElementById('mic-btn'), s = document.getElementById('mic-status');
-    if (b) { b.classList.add('listening'); b.textContent = 'stop'; }
-    if (s) s.textContent = 'Parlez maintenant...';
-  };
-  sharedRec.onresult = (e) => {
-    const t = e.results[0][0].transcript.trim();
-    const inp = document.getElementById('quiz-input-field'), s = document.getElementById('mic-status');
-    if (inp) inp.value = t;
-    if (s) s.textContent = 'Entendu : ' + t;
-  };
-  sharedRec.onend = () => {
-    isListening = false;
-    const b = document.getElementById('mic-btn');
-    if (b) { b.classList.remove('listening'); b.textContent = 'mic'; }
-    const val = document.getElementById('quiz-input-field') && document.getElementById('quiz-input-field').value.trim();
-    if (val && currentMicAnswer && !state.quizAnswered) {
-      setTimeout(function() { if (!state.quizAnswered) checkInput(currentMicAnswer); }, 400);
-    } else if (!val) {
-      const s = document.getElementById('mic-status');
-      if (s) s.textContent = 'Rien entendu, reessayez';
-    }
-  };
-  sharedRec.onerror = (e) => {
-    isListening = false;
-    const b = document.getElementById('mic-btn');
-    if (b) { b.classList.remove('listening'); b.textContent = 'mic'; }
-    const s = document.getElementById('mic-status');
-    if (s && e.error !== 'aborted') s.textContent = e.error === 'no-speech' ? 'Rien entendu' : 'Erreur: ' + e.error;
-  };
+let isListening = false;
+let micPopup = null;
+
+// Page HTML du popup micro — contexte frais a chaque fois
+function getMicPopupHTML(lang) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+  body{margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#1a2410;color:#e8f0d8;font-family:sans-serif;gap:16px}
+  #status{font-size:1.1rem;text-align:center;padding:0 20px}
+  #result{font-size:1.4rem;font-weight:bold;color:#8fbe3c;text-align:center;min-height:40px;padding:0 20px}
+  .mic-circle{width:80px;height:80px;border-radius:50%;background:#8fbe3c;display:flex;align-items:center;justify-content:center;font-size:2rem;cursor:pointer;transition:all 0.2s;border:none}
+  .mic-circle.listening{background:#e05a4a;animation:pulse 0.6s infinite alternate}
+  @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.1)}}
+</style></head><body>
+<div id="status">Appuyez pour parler</div>
+<button class="mic-circle" id="micBtn" onclick="startListen()">mic</button>
+<div id="result"></div>
+<script>
+  const lang = '${lang}';
+  let rec = null;
+  function startListen() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { document.getElementById('status').textContent = 'Non supporte'; return; }
+    rec = new SR();
+    rec.lang = lang;
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.onstart = () => {
+      document.getElementById('micBtn').classList.add('listening');
+      document.getElementById('micBtn').textContent = 'stop';
+      document.getElementById('status').textContent = 'Parlez...';
+    };
+    rec.onresult = (e) => {
+      const t = e.results[0][0].transcript.trim();
+      document.getElementById('result').textContent = t;
+      document.getElementById('status').textContent = 'Entendu !';
+      window.opener.postMessage({type:'mic_result', transcript: t}, '*');
+    };
+    rec.onend = () => {
+      document.getElementById('micBtn').classList.remove('listening');
+      document.getElementById('micBtn').textContent = 'mic';
+      if (!document.getElementById('result').textContent) {
+        document.getElementById('status').textContent = 'Rien entendu, reessayez';
+      } else {
+        setTimeout(() => window.close(), 800);
+      }
+    };
+    rec.onerror = (e) => {
+      document.getElementById('micBtn').classList.remove('listening');
+      document.getElementById('micBtn').textContent = 'mic';
+      document.getElementById('status').textContent = e.error === 'not-allowed' ? 'Autorisez le micro' : 'Erreur: ' + e.error;
+    };
+    rec.start();
+  }
+  // Demarrer auto apres 300ms
+  setTimeout(startListen, 300);
+<\/script><\/body><\/html>`;
 }
+
 function toggleMic(expectedAnswer) {
-  if (!sharedRec) { const s = document.getElementById('mic-status'); if (s) s.textContent = 'Micro non supporte'; return; }
   currentMicAnswer = expectedAnswer;
-  if (isListening) { try { sharedRec.stop(); } catch(ex) {} return; }
-  sharedRec.lang = state.direction === 'fr-vi' ? 'vi-VN' : 'fr-FR';
-  try { sharedRec.start(); }
-  catch(ex) { const s = document.getElementById('mic-status'); if (s) s.textContent = 'Reessayez'; }
+  const lang = state.direction === 'fr-vi' ? 'vi-VN' : 'fr-FR';
+
+  // Fermer ancien popup si ouvert
+  if (micPopup && !micPopup.closed) { micPopup.close(); }
+
+  // Ouvrir nouveau popup — contexte JS totalement frais, pas de throttling
+  const html = getMicPopupHTML(lang);
+  const blob = new Blob([html], {type: 'text/html'});
+  const url = URL.createObjectURL(blob);
+  micPopup = window.open(url, 'mic_popup', 'width=300,height=280,top=100,left=100');
+
+  const s = document.getElementById('mic-status');
+  if (s) s.textContent = 'Fenetre micro ouverte...';
 }
-updateXPBar();
-renderLessons();
+
+// Recevoir le resultat du popup
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'mic_result') {
+    const transcript = e.data.transcript;
+    const inp = document.getElementById('quiz-input-field');
+    const s = document.getElementById('mic-status');
+    if (inp) inp.value = transcript;
+    if (s) s.textContent = 'Entendu : ' + transcript;
+    if (micPopup && !micPopup.closed) micPopup.close();
+    setTimeout(() => { if (!state.quizAnswered) checkInput(currentMicAnswer); }, 300);
+  }
+});
+
 initAuth();
 function renderCompte() {
   const el = document.getElementById('compte-inner');
