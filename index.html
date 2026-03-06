@@ -236,53 +236,83 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
   /* LAYOUT */
   .app{grid-template-columns:1fr}
   .sidebar{display:none}
-  .main{padding-bottom:72px}
+  .main{padding-bottom:80px}
 
-  /* TOPBAR */
-  .topbar{padding:14px 16px;gap:10px}
-  .page-title{font-size:1.15rem}
+  /* TOPBAR — compact sur mobile */
+  .topbar{
+    padding:10px 12px;
+    gap:6px;
+    flex-wrap:nowrap;
+    min-height:56px;
+  }
+  .topbar > div:first-child{display:none} /* cache titre sur mobile */
   .page-sub{display:none}
-  .streak-badge{padding:5px 10px;font-size:0.75rem}
+  .streak-badge{padding:4px 8px;font-size:0.7rem;gap:4px;white-space:nowrap;flex-shrink:0}
+  .dir-toggle-mobile{display:flex !important;flex-shrink:0}
+  .dir-btn-m{padding:5px 7px;font-size:0.68rem}
+  .user-badge{padding:4px 8px;font-size:0.72rem;gap:5px;flex-shrink:0}
+  .user-badge span:last-child{display:none} /* cache "Déconnexion" */
 
   /* CONTENT */
-  .content{padding:16px}
+  .content{padding:12px;overflow-x:hidden}
 
-  /* CHAT */
-  .chat-layout{height:calc(100dvh - 144px)}
-  .msg-bubble{max-width:88%;font-size:0.85rem;padding:11px 13px}
-  .quick-actions{gap:6px}
-  .quick-btn{font-size:0.72rem;padding:5px 11px}
-  .chat-input{font-size:0.9rem;padding:10px 13px}
-  .send-btn{width:40px;height:40px}
+  /* CHAT — fix débordement */
+  .chat-layout{height:calc(100dvh - 56px - 80px - 16px);gap:0}
+  .chat-messages{overflow-x:hidden;word-break:break-word}
+  .msg{max-width:100%;overflow:hidden}
+  .msg-bubble{
+    max-width:82%;
+    font-size:0.85rem;
+    padding:11px 13px;
+    word-break:break-word;
+    overflow-wrap:break-word;
+    min-width:0;
+  }
+  .msg-bubble br{line-height:1.8}
+  .msg-avatar{width:30px;height:30px;font-size:13px;flex-shrink:0}
+  .quick-actions{gap:5px;padding-bottom:4px}
+  .quick-btn{font-size:0.7rem;padding:5px 10px;white-space:nowrap}
+  .chat-input-area{padding:10px 0 0}
+  .chat-input{font-size:0.88rem;padding:10px 12px}
+  .send-btn{width:40px;height:40px;flex-shrink:0}
 
   /* QUIZ */
   .quiz-opts{grid-template-columns:1fr}
-  .quiz-mode-tabs{gap:6px}
-  .qm-tab{padding:7px 13px;font-size:0.75rem}
-  .quiz-word{font-size:1.6rem}
-  .quiz-card{padding:24px 20px;min-height:140px}
+  .quiz-mode-tabs{gap:5px}
+  .qm-tab{padding:6px 11px;font-size:0.72rem}
+  .quiz-word{font-size:1.5rem}
+  .quiz-card{padding:20px 16px;min-height:120px}
+  .quiz-header{gap:10px}
 
   /* VOCAB */
   .theme-grid{grid-template-columns:repeat(2,1fr);gap:8px}
-  .theme-card{padding:12px}
-  .theme-icon{font-size:1.4rem;margin-bottom:4px}
-  .theme-name{font-size:0.8rem}
+  .theme-card{padding:10px}
+  .theme-icon{font-size:1.3rem;margin-bottom:4px}
+  .theme-name{font-size:0.78rem}
   .vocab-controls{flex-wrap:wrap;gap:6px}
   .search-input{min-width:100%;order:-1}
+  .vocab-table{font-size:0.82rem}
   .vocab-table th:nth-child(3),.vocab-table td:nth-child(3){display:none}
   .vocab-table th:nth-child(4),.vocab-table td:nth-child(4){display:none}
+  .vocab-word{font-size:0.95rem}
 
   /* LESSONS */
   .lesson-grid{grid-template-columns:1fr;gap:10px}
-  .lesson-card{padding:16px}
+  .lesson-card{padding:14px}
+
+  /* FLASHCARD */
+  .flashcard{height:160px}
+  .card-word{font-size:1.6rem}
 
   /* SECTION */
-  .section-title{font-size:1.2rem}
-  .result-big{font-size:3.5rem}
+  .section-title{font-size:1.15rem}
+  .section-sub{font-size:0.78rem}
+  .result-big{font-size:3rem}
   .result-actions{flex-direction:column;align-items:center}
+  .card{padding:20px 16px}
 
-  /* DIR TOGGLE in topbar */
-  .dir-toggle-mobile{display:flex !important}
+  /* AUTH MODAL */
+  .auth-modal{padding:28px 20px}
 }
 
 /* BOTTOM NAV — mobile only */
@@ -456,6 +486,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
       <div class="page-title" id="page-title">Professeur IA</div>
       <div class="page-sub" id="page-sub">Posez n'importe quelle question en français ou en vietnamien</div>
     </div>
+    <div style="display:none" class="mobile-brand" id="mobile-brand" onclick="showPanel('chat')" style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;color:var(--accent2);cursor:pointer;flex-shrink:0">LinguAI</div>
     <div class="dir-toggle-mobile" id="dir-toggle-mobile">
       <button class="dir-btn-m active" id="dir-m-fr-vi" onclick="setDirection('fr-vi')">🇫🇷→🇻🇳</button>
       <button class="dir-btn-m" id="dir-m-vi-fr" onclick="setDirection('vi-fr')">🇻🇳→🇫🇷</button>
@@ -1126,9 +1157,20 @@ async function callAI(userMessage) {
 
 function formatMessage(text) {
   return text
+    // Titres ### ## #
+    .replace(/^### (.+)$/gm, '<div style="font-family:var(--font-display);font-size:1.05rem;font-weight:700;color:var(--accent2);margin:14px 0 6px">$1</div>')
+    .replace(/^## (.+)$/gm, '<div style="font-family:var(--font-display);font-size:1.15rem;font-weight:700;color:var(--accent2);margin:14px 0 6px">$1</div>')
+    .replace(/^# (.+)$/gm, '<div style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;color:var(--accent2);margin:14px 0 8px">$1</div>')
+    // Gras et italique
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em style="color:var(--gold)">$1</em>')
-    .replace(/^• (.+)$/gm, '<div style="padding:2px 0 2px 12px;border-left:2px solid var(--border2);margin:4px 0">$1</div>')
+    // Listes numérotées
+    .replace(/^\d+\. (.+)$/gm, '<div style="padding:3px 0 3px 16px;position:relative"><span style="position:absolute;left:0;color:var(--accent)">•</span>$1</div>')
+    // Listes à puces
+    .replace(/^[•\-\*] (.+)$/gm, '<div style="padding:3px 0 3px 16px;position:relative"><span style="position:absolute;left:0;color:var(--accent)">•</span>$1</div>')
+    // Backticks inline
+    .replace(/`([^`]+)`/g, '<code style="background:var(--surface);border:1px solid var(--border2);border-radius:4px;padding:1px 5px;font-size:0.85em;color:var(--accent2)">$1</code>')
+    // Sauts de ligne
     .replace(/\n\n/g, '<br><br>')
     .replace(/\n/g, '<br>');
 }
