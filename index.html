@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LinguAI — Professeur FR ↔ VI</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0C0F0A;
+  --surface: #141810;
+  --surface2: #1C2118;
+  --border: rgba(180,210,120,0.12);
+  --border2: rgba(180,210,120,0.22);
+  --accent: #8FBE3C;
+  --accent2: #C8E87A;
+  --accent-dim: rgba(143,190,60,0.15);
+  --text: #EDF2E8;
+  --text2: rgba(237,242,232,0.55);
+  --text3: rgba(237,242,232,0.3);
+  --red: #E05A4A;
+  --red-dim: rgba(224,90,74,0.15);
+  --gold: #D4A847;
+  --gold-dim: rgba(212,168,71,0.15);
+  --blue: #4A90D4;
+  --blue-dim: rgba(74,144,212,0.15);
+  --radius: 8px;
+  --font-display: 'Cormorant Garamond', serif;
+  --font-body: 'DM Sans', sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;overflow-x:hidden}
+
+/* NOISE TEXTURE */
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:0.4}
+
+/* GLOW ORBS */
+.orb1,.orb2{position:fixed;border-radius:50%;filter:blur(100px);pointer-events:none;z-index:0}
+.orb1{width:500px;height:500px;background:radial-gradient(circle,rgba(143,190,60,0.06) 0%,transparent 70%);top:-100px;right:-100px}
+.orb2{width:400px;height:400px;background:radial-gradient(circle,rgba(74,144,212,0.05) 0%,transparent 70%);bottom:-100px;left:-100px}
+
+/* LAYOUT */
+.app{display:grid;grid-template-columns:260px 1fr;min-height:100vh;position:relative;z-index:1}
+
+/* SIDEBAR */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:0;overflow-y:auto;position:sticky;top:0;height:100vh}
+.brand{padding:28px 24px 20px;border-bottom:1px solid var(--border)}
+.brand-name{font-family:var(--font-display);font-size:1.9rem;font-weight:700;color:var(--accent2);letter-spacing:-0.02em;line-height:1}
+.brand-sub{font-size:0.72rem;color:var(--text3);letter-spacing:0.18em;text-transform:uppercase;margin-top:4px}
+
+/* DIRECTION TOGGLE */
+.dir-toggle{margin:16px;background:var(--surface2);border-radius:var(--radius);padding:4px;display:flex;gap:2px;border:1px solid var(--border)}
+.dir-btn{flex:1;padding:8px 6px;border:none;border-radius:6px;background:none;color:var(--text2);cursor:pointer;font-family:var(--font-body);font-size:0.78rem;font-weight:600;letter-spacing:0.05em;transition:all 0.2s ease;text-align:center}
+.dir-btn.active{background:var(--accent);color:#0C0F0A;font-weight:700}
+
+/* XP BAR */
+.xp-section{padding:0 16px 16px;border-bottom:1px solid var(--border)}
+.xp-label{display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text3);margin-bottom:6px;letter-spacing:0.05em}
+.xp-bar{height:4px;background:var(--surface2);border-radius:99px;overflow:hidden}
+.xp-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;transition:width 0.6s ease;width:0%}
+.xp-stats{display:flex;gap:12px;margin-top:10px}
+.xp-stat{flex:1;background:var(--surface2);border-radius:6px;padding:8px;text-align:center;border:1px solid var(--border)}
+.xp-stat-val{font-family:var(--font-display);font-size:1.3rem;font-weight:600;color:var(--accent2)}
+.xp-stat-lbl{font-size:0.65rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em}
+
+/* NAV */
+.nav-section{padding:16px 12px 8px;font-size:0.68rem;color:var(--text3);letter-spacing:0.18em;text-transform:uppercase;font-weight:600}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:6px;cursor:pointer;transition:all 0.18s ease;color:var(--text2);font-size:0.85rem;font-weight:500;margin:1px 0;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent2);border:1px solid rgba(143,190,60,0.2)}
+.nav-icon{width:28px;height:28px;border-radius:6px;display:grid;place-items:center;font-size:14px;flex-shrink:0;background:var(--surface2)}
+.nav-item.active .nav-icon{background:var(--accent-dim)}
+.nav-badge{margin-left:auto;background:var(--accent);color:#0C0F0A;border-radius:99px;font-size:0.62rem;font-weight:700;padding:1px 6px}
+
+/* MAIN */
+.main{display:flex;flex-direction:column;min-height:100vh}
+
+/* TOPBAR */
+.topbar{padding:20px 32px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface);backdrop-filter:blur(10px);position:sticky;top:0;z-index:10}
+.page-title{font-family:var(--font-display);font-size:1.5rem;font-weight:600;letter-spacing:-0.01em}
+.page-sub{font-size:0.8rem;color:var(--text2);margin-top:2px}
+.streak-badge{display:flex;align-items:center;gap:6px;background:var(--gold-dim);border:1px solid rgba(212,168,71,0.3);border-radius:99px;padding:6px 14px;font-size:0.82rem;color:var(--gold);font-weight:600}
+
+/* CONTENT */
+.content{flex:1;padding:32px;overflow-y:auto}
+
+/* PANELS */
+.panel{display:none;animation:fadeIn 0.3s ease}
+.panel.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* CHAT / AI TUTOR */
+.chat-layout{display:grid;grid-template-rows:1fr auto;height:calc(100vh - 130px);gap:0}
+.chat-messages{overflow-y:auto;padding:0 0 16px;display:flex;flex-direction:column;gap:16px}
+.msg{display:flex;gap:12px;align-items:flex-start;animation:fadeIn 0.3s ease}
+.msg.user{flex-direction:row-reverse}
+.msg-avatar{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;font-size:15px;flex-shrink:0}
+.msg-avatar.ai{background:var(--accent-dim);border:1px solid rgba(143,190,60,0.3)}
+.msg-avatar.user{background:var(--blue-dim);border:1px solid rgba(74,144,212,0.3)}
+.msg-bubble{max-width:75%;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;font-size:0.9rem;line-height:1.65;color:var(--text)}
+.msg.user .msg-bubble{background:var(--blue-dim);border-color:rgba(74,144,212,0.3)}
+.msg-bubble strong{color:var(--accent2)}
+.msg-bubble em{color:var(--gold);font-style:normal}
+.msg-bubble .vn{font-family:var(--font-display);font-size:1.15rem;color:var(--accent2);font-weight:600}
+.msg-bubble .ex{font-size:0.82rem;color:var(--text2);margin-top:6px;border-left:2px solid var(--border2);padding-left:10px}
+.msg-bubble .tip{background:var(--gold-dim);border:1px solid rgba(212,168,71,0.25);border-radius:6px;padding:8px 12px;margin-top:10px;font-size:0.82rem;color:var(--gold)}
+.msg-time{font-size:0.68rem;color:var(--text3);margin-top:4px;text-align:right}
+.msg.user .msg-time{text-align:left}
+
+/* QUICK ACTIONS */
+.quick-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.quick-btn{background:var(--surface2);border:1px solid var(--border2);border-radius:99px;padding:6px 14px;font-size:0.78rem;color:var(--text2);cursor:pointer;transition:all 0.18s ease;font-family:var(--font-body);white-space:nowrap}
+.quick-btn:hover{background:var(--accent-dim);color:var(--accent2);border-color:rgba(143,190,60,0.4)}
+
+/* CHAT INPUT */
+.chat-input-area{border-top:1px solid var(--border);padding:16px 0 0;background:var(--bg)}
+.chat-input-wrap{display:flex;gap:10px;align-items:flex-end}
+.chat-input{flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:12px 16px;font-family:var(--font-body);font-size:0.9rem;color:var(--text);resize:none;outline:none;min-height:48px;max-height:140px;transition:border-color 0.2s ease;line-height:1.5}
+.chat-input:focus{border-color:rgba(143,190,60,0.5)}
+.chat-input::placeholder{color:var(--text3)}
+.send-btn{width:44px;height:44px;background:var(--accent);border:none;border-radius:8px;cursor:pointer;display:grid;place-items:center;font-size:18px;flex-shrink:0;transition:all 0.2s ease;color:#0C0F0A}
+.send-btn:hover{background:var(--accent2);transform:scale(1.05)}
+.send-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+
+/* LOADING DOT */
+.typing-indicator{display:flex;gap:4px;padding:4px 0;align-items:center}
+.typing-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:bounce 1.2s infinite}
+.typing-dot:nth-child(2){animation-delay:0.2s}
+.typing-dot:nth-child(3){animation-delay:0.4s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
+
+/* VOCABULARY PANEL */
+.theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:28px}
+.theme-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;cursor:pointer;transition:all 0.2s ease}
+.theme-card:hover,.theme-card.active{border-color:var(--border2);background:var(--surface)}
+.theme-card.active{border-color:rgba(143,190,60,0.4);background:var(--accent-dim)}
+.theme-icon{font-size:1.8rem;margin-bottom:8px}
+.theme-name{font-weight:600;font-size:0.9rem;color:var(--text)}
+.theme-count{font-size:0.75rem;color:var(--text3);margin-top:2px}
+
+/* VOCAB TABLE */
+.vocab-controls{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.search-input{flex:1;min-width:180px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none}
+.search-input:focus{border-color:rgba(143,190,60,0.4)}
+.search-input::placeholder{color:var(--text3)}
+.filter-btn{padding:9px 16px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:var(--font-body);font-size:0.8rem;cursor:pointer;transition:all 0.18s ease}
+.filter-btn.active{background:var(--accent-dim);color:var(--accent2);border-color:rgba(143,190,60,0.4)}
+
+.vocab-table{width:100%;border-collapse:collapse}
+.vocab-table th{text-align:left;padding:10px 14px;font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);font-weight:600}
+.vocab-table td{padding:12px 14px;border-bottom:1px solid rgba(180,210,120,0.06);font-size:0.88rem;vertical-align:middle}
+.vocab-table tr:hover td{background:var(--surface2)}
+.vocab-word{font-family:var(--font-display);font-size:1.05rem;color:var(--text);font-weight:600}
+.vocab-trans{color:var(--accent2)}
+.vocab-pron{font-size:0.78rem;color:var(--text3);margin-top:2px}
+.vocab-ex{font-size:0.78rem;color:var(--text2);margin-top:3px;font-style:italic}
+.mastery-pip{width:8px;height:8px;border-radius:50%;display:inline-block}
+.tag{display:inline-block;padding:2px 8px;border-radius:99px;font-size:0.68rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase}
+.tag-new{background:var(--blue-dim);color:var(--blue)}
+.tag-learn{background:var(--gold-dim);color:var(--gold)}
+.tag-known{background:var(--accent-dim);color:var(--accent)}
+
+/* QUIZ PANEL */
+.quiz-header{display:flex;align-items:center;gap:16px;margin-bottom:24px}
+.quiz-progress{flex:1;height:6px;background:var(--surface2);border-radius:99px;overflow:hidden}
+.quiz-progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;transition:width 0.4s ease}
+.quiz-score-badge{background:var(--surface2);border:1px solid var(--border2);border-radius:99px;padding:5px 14px;font-size:0.82rem;font-weight:600;white-space:nowrap}
+.quiz-mode-tabs{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap}
+.qm-tab{padding:8px 18px;border-radius:99px;border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer;font-family:var(--font-body);font-size:0.8rem;font-weight:500;transition:all 0.18s ease}
+.qm-tab.active{background:var(--accent);color:#0C0F0A;border-color:var(--accent);font-weight:700}
+.quiz-card{background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:36px;text-align:center;margin-bottom:20px;min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+.quiz-direction-tag{position:absolute;top:14px;left:14px;font-size:0.68rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--text3);background:var(--surface);border-radius:4px;padding:3px 8px;border:1px solid var(--border)}
+.quiz-prompt-label{font-size:0.72rem;color:var(--text3);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:12px}
+.quiz-word{font-family:var(--font-display);font-size:clamp(2rem,4vw,2.8rem);font-weight:700;color:var(--text);line-height:1.2}
+.quiz-hint{font-size:0.82rem;color:var(--text3);margin-top:8px}
+.quiz-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.quiz-opt{background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:14px 16px;cursor:pointer;font-family:var(--font-body);font-size:0.9rem;color:var(--text);transition:all 0.18s ease;text-align:left;display:flex;align-items:center;gap:10px}
+.quiz-opt:hover:not(:disabled){border-color:var(--border2);background:var(--surface);transform:translateY(-1px)}
+.quiz-opt.correct{background:rgba(26,122,74,0.15);border-color:#1A7A4A;color:#6FD4A0}
+.quiz-opt.wrong{background:var(--red-dim);border-color:var(--red);color:var(--red)}
+.opt-letter{width:24px;height:24px;border-radius:4px;background:var(--surface);display:grid;place-items:center;font-size:0.7rem;font-weight:700;flex-shrink:0;color:var(--text3)}
+.quiz-opt.correct .opt-letter{background:rgba(26,122,74,0.3);color:#6FD4A0}
+.quiz-opt.wrong .opt-letter{background:rgba(224,90,74,0.3);color:var(--red)}
+.quiz-feedback{border-radius:8px;padding:14px 18px;margin-bottom:14px;display:none;font-size:0.88rem;font-weight:500;align-items:center;gap:10px}
+.quiz-feedback.correct{background:rgba(26,122,74,0.12);border:1px solid rgba(26,122,74,0.3);color:#6FD4A0;display:flex}
+.quiz-feedback.wrong{background:var(--red-dim);border:1px solid rgba(224,90,74,0.3);color:var(--red);display:flex}
+.quiz-next{width:100%;background:var(--accent);color:#0C0F0A;border:none;border-radius:8px;padding:14px;font-family:var(--font-body);font-size:0.88rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;transition:all 0.2s ease;display:none}
+.quiz-next:hover{background:var(--accent2);transform:translateY(-1px)}
+.quiz-next.show{display:block}
+
+/* INPUT QUIZ */
+.quiz-input{width:100%;background:var(--surface);border:1.5px solid var(--border2);border-radius:8px;padding:14px 18px;font-family:var(--font-body);font-size:1rem;color:var(--text);outline:none;margin-bottom:12px;transition:border-color 0.2s ease}
+.quiz-input:focus{border-color:rgba(143,190,60,0.5)}
+.quiz-check-btn{width:100%;background:var(--surface2);border:1.5px solid var(--border2);border-radius:8px;padding:13px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;color:var(--text2);cursor:pointer;margin-bottom:12px;transition:all 0.2s ease;letter-spacing:0.06em}
+.quiz-check-btn:hover{background:var(--accent-dim);color:var(--accent2);border-color:rgba(143,190,60,0.4)}
+
+/* RESULT */
+.result-card{background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:48px;text-align:center}
+.result-big{font-family:var(--font-display);font-size:5rem;font-weight:700;color:var(--accent2);line-height:1}
+.result-lbl{font-size:0.75rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--text3);margin:8px 0 20px}
+.result-msg{font-family:var(--font-display);font-size:1.5rem;font-style:italic;color:var(--text);margin-bottom:32px}
+.result-actions{display:flex;gap:12px;justify-content:center}
+.btn-primary{background:var(--accent);color:#0C0F0A;border:none;border-radius:8px;padding:12px 28px;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer;transition:all 0.2s ease;letter-spacing:0.06em}
+.btn-primary:hover{background:var(--accent2);transform:translateY(-2px)}
+.btn-secondary{background:var(--surface);border:1px solid var(--border2);color:var(--text2);border-radius:8px;padding:12px 28px;font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer;transition:all 0.18s ease}
+.btn-secondary:hover{background:var(--surface2);color:var(--text)}
+
+/* LEÇONS */
+.lesson-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.lesson-card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:24px;cursor:pointer;transition:all 0.2s ease;position:relative;overflow:hidden}
+.lesson-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));opacity:0;transition:opacity 0.2s ease}
+.lesson-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,0.3)}
+.lesson-card:hover::before,.lesson-card.done::before{opacity:1}
+.lesson-card.locked{opacity:0.5;cursor:not-allowed}
+.lesson-card.locked:hover{transform:none}
+.lesson-num{font-size:0.68rem;letter-spacing:0.2em;color:var(--text3);text-transform:uppercase;margin-bottom:8px}
+.lesson-title{font-family:var(--font-display);font-size:1.2rem;font-weight:600;margin-bottom:4px}
+.lesson-desc{font-size:0.8rem;color:var(--text2);line-height:1.5}
+.lesson-meta{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.lesson-tag{font-size:0.68rem;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:3px 8px;color:var(--text3)}
+.lesson-status{position:absolute;top:14px;right:14px;font-size:1rem}
+.lesson-words{font-size:0.72rem;color:var(--text3);margin-top:6px}
+
+/* SECTION TITLES */
+.section-title{font-family:var(--font-display);font-size:1.4rem;font-weight:600;margin-bottom:6px}
+.section-sub{font-size:0.82rem;color:var(--text2);margin-bottom:24px}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
+
+/* MOBILE */
+@media(max-width:768px){
+  .app{grid-template-columns:1fr}
+  .sidebar{position:fixed;left:-260px;top:0;bottom:0;z-index:100;transition:left 0.3s ease;height:100vh}
+  .sidebar.open{left:0}
+  .content{padding:20px}
+  .quiz-opts{grid-template-columns:1fr}
+  .theme-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+/* BADGE */
+.badge-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:28px}
+.badge{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--text2)}
+.badge-icon{font-size:1.3rem}
+.badge.earned{border-color:rgba(212,168,71,0.4);background:var(--gold-dim);color:var(--gold)}
+</style>
+</head>
+<body>
+<div class="orb1"></div>
+<div class="orb2"></div>
+
+<div class="app">
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="brand">
+    <div class="brand-name">LinguAI</div>
+    <div class="brand-sub">Professeur FR ↔ VI</div>
+  </div>
+
+  <div class="dir-toggle">
+    <button class="dir-btn active" id="dir-fr-vi" onclick="setDirection('fr-vi')">🇫🇷 FR → VI</button>
+    <button class="dir-btn" id="dir-vi-fr" onclick="setDirection('vi-fr')">🇻🇳 VI → FR</button>
+  </div>
+
+  <div class="xp-section">
+    <div class="xp-label"><span>Niveau <span id="xp-level">1</span></span><span><span id="xp-current">0</span> / <span id="xp-max">100</span> XP</span></div>
+    <div class="xp-bar"><div class="xp-fill" id="xp-fill"></div></div>
+    <div class="xp-stats">
+      <div class="xp-stat"><div class="xp-stat-val" id="stat-streak">0</div><div class="xp-stat-lbl">🔥 Série</div></div>
+      <div class="xp-stat"><div class="xp-stat-val" id="stat-words">0</div><div class="xp-stat-lbl">📚 Mots</div></div>
+      <div class="xp-stat"><div class="xp-stat-val" id="stat-score">0%</div><div class="xp-stat-lbl">🎯 Précis.</div></div>
+    </div>
+  </div>
+
+  <div class="nav-section">Navigation</div>
+  <button class="nav-item active" onclick="showPanel('chat')" id="nav-chat">
+    <div class="nav-icon">🤖</div> Professeur IA
+  </button>
+  <button class="nav-item" onclick="showPanel('lessons')" id="nav-lessons">
+    <div class="nav-icon">📖</div> Leçons
+    <span class="nav-badge">18</span>
+  </button>
+  <button class="nav-item" onclick="showPanel('quiz')" id="nav-quiz">
+    <div class="nav-icon">🎯</div> Quiz
+  </button>
+  <button class="nav-item" onclick="showPanel('vocab')" id="nav-vocab">
+    <div class="nav-icon">📚</div> Vocabulaire
+    <span class="nav-badge" id="vocab-count-badge">240</span>
+  </button>
+  <button class="nav-item" onclick="showPanel('flashcards')" id="nav-flashcards">
+    <div class="nav-icon">🃏</div> Flashcards
+  </button>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div>
+      <div class="page-title" id="page-title">Professeur IA</div>
+      <div class="page-sub" id="page-sub">Posez n'importe quelle question en français ou en vietnamien</div>
+    </div>
+    <div class="streak-badge">🔥 <span id="top-streak">0</span> jours</div>
+  </div>
+
+  <div class="content">
+
+    <!-- CHAT PANEL -->
+    <div class="panel active" id="panel-chat">
+      <div class="chat-layout">
+        <div class="chat-messages" id="chat-messages">
+          <div class="msg">
+            <div class="msg-avatar ai">🤖</div>
+            <div>
+              <div class="msg-bubble">
+                Xin chào ! Je suis votre professeur de <strong>vietnamien</strong> 🌿<br><br>
+                Je vais vous apprendre le vietnamien depuis le début. Je peux :<br>
+                • <strong>Enseigner du vocabulaire</strong> avec prononciation et tons<br>
+                • <strong>Expliquer la grammaire</strong> vietnamienne (tons, structure...)<br>
+                • <strong>Corriger vos phrases</strong> et donner des exemples culturels<br>
+                • <strong>Répondre à toutes vos questions</strong> sur le vietnamien<br><br>
+                Par quoi voulez-vous commencer ?
+              </div>
+              <div class="msg-time">Maintenant</div>
+            </div>
+          </div>
+        </div>
+        <div class="chat-input-area">
+          <div class="quick-actions" id="quick-actions">
+            <button class="quick-btn" onclick="sendQuick('Comment dit-on bonjour en vietnamien ? Explique les différentes formes selon le contexte.')">Comment dire bonjour ?</button>
+            <button class="quick-btn" onclick="sendQuick('Explique-moi les 6 tons vietnamiens avec des exemples clairs pour un francophone.')">Les tons vietnamiens</button>
+            <button class="quick-btn" onclick="sendQuick('Donne-moi 8 mots essentiels pour voyager au Vietnam, avec prononciation et exemple.')">Mots essentiels voyage</button>
+            <button class="quick-btn" onclick="sendQuick('Comment se présenter en vietnamien ? (nom, âge, nationalité)')">Se présenter</button>
+            <button class="quick-btn" onclick="sendQuick('Quelles sont les différences de vocabulaire et d\'accent entre le Nord et le Sud du Vietnam ?')">Nord vs Sud Vietnam</button>
+            <button class="quick-btn" onclick="sendQuick('Apprends-moi les chiffres de 1 à 10 en vietnamien, avec prononciation et astuces de mémorisation.')">Les chiffres</button>
+          </div>
+          <div class="chat-input-wrap">
+            <textarea class="chat-input" id="chat-input" placeholder="Posez votre question... (Entée pour envoyer)" rows="1"></textarea>
+            <button class="send-btn" id="send-btn" onclick="sendMessage()">➤</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LESSONS PANEL -->
+    <div class="panel" id="panel-lessons">
+      <div class="section-title">Programme de leçons</div>
+      <div class="section-sub">18 leçons progressives · Débutant → Avancé</div>
+      <div class="lesson-grid" id="lesson-grid"></div>
+    </div>
+
+    <!-- QUIZ PANEL -->
+    <div class="panel" id="panel-quiz">
+      <div class="section-title">Quiz & Exercices</div>
+      <div class="section-sub">Testez votre niveau · Direction : <span id="quiz-dir-label">FR → VI</span></div>
+      <div class="quiz-mode-tabs">
+        <button class="qm-tab active" onclick="setQuizMode('qcm',this)">QCM</button>
+        <button class="qm-tab" onclick="setQuizMode('input',this)">Saisie libre</button>
+        <button class="qm-tab" onclick="setQuizMode('vrai-faux',this)">Vrai / Faux</button>
+      </div>
+      <div id="quiz-area"></div>
+    </div>
+
+    <!-- VOCAB PANEL -->
+    <div class="panel" id="panel-vocab">
+      <div class="section-title">Dictionnaire complet</div>
+      <div class="section-sub">240 mots · 12 thèmes · FR ↔ VI</div>
+      <div class="theme-grid" id="theme-grid"></div>
+      <div class="vocab-controls">
+        <input class="search-input" id="vocab-search" placeholder="🔍  Rechercher un mot..." oninput="filterVocab()">
+        <button class="filter-btn active" onclick="setVocabFilter('all',this)">Tous</button>
+        <button class="filter-btn" onclick="setVocabFilter('new',this)">Nouveaux</button>
+        <button class="filter-btn" onclick="setVocabFilter('learn',this)">En cours</button>
+        <button class="filter-btn" onclick="setVocabFilter('known',this)">Maîtrisés</button>
+      </div>
+      <table class="vocab-table">
+        <thead>
+          <tr>
+            <th>Français</th>
+            <th>Tiếng Việt</th>
+            <th>Catégorie</th>
+            <th>État</th>
+          </tr>
+        </thead>
+        <tbody id="vocab-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- FLASHCARDS PANEL -->
+    <div class="panel" id="panel-flashcards">
+      <div id="fc-panel-inner"></div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<script>
+// ===================== STATE =====================
+let state = {
+  direction: 'fr-vi',
+  xp: 0, level: 1, streak: 3,
+  quizMode: 'qcm',
+  quizIndex: 0, quizScore: 0, quizTotal: 0, quizAnswered: false,
+  currentTheme: 'all',
+  vocabFilter: 'all',
+  fcIndex: 0, fcKnown: 0, fcReview: 0,
+  quizSet: [],
+  wordStates: {},
+  quizResults: { correct: 0, total: 0 },
+  isTyping: false,
+};
+
+// ===================== VOCABULARY DATA (240 words) =====================
+const THEMES = [
+  { id:'salutations', name:'Salutations', icon:'👋', count:20 },
+  { id:'famille', name:'Famille', icon:'👨‍👩‍👧', count:18 },
+  { id:'nourriture', name:'Nourriture', icon:'🍜', count:25 },
+  { id:'voyage', name:'Voyage', icon:'✈️', count:20 },
+  { id:'chiffres', name:'Chiffres & Temps', icon:'🔢', count:22 },
+  { id:'corps', name:'Corps & Santé', icon:'💪', count:18 },
+  { id:'ville', name:'Ville & Lieux', icon:'🏙️', count:20 },
+  { id:'couleurs', name:'Couleurs & Formes', icon:'🎨', count:14 },
+  { id:'meteo', name:'Météo & Nature', icon:'🌿', count:16 },
+  { id:'emotions', name:'Émotions', icon:'😊', count:16 },
+  { id:'travail', name:'Travail', icon:'💼', count:18 },
+  { id:'quotidien', name:'Vie quotidienne', icon:'🏠', count:20 },
+];
+
+const VOCAB = [
+  // SALUTATIONS
+  {fr:'Bonjour',vi:'Xin chào',pron:'sin chào',cat:'salutations',ex:'Xin chào! Bạn khỏe không? — Bonjour ! Comment allez-vous ?'},
+  {fr:'Bonsoir',vi:'Chào buổi tối',pron:'chào buổi tối',cat:'salutations',ex:'Chào buổi tối ! Hôm nay thế nào ?'},
+  {fr:'Bonne nuit',vi:'Chúc ngủ ngon',pron:'chúc ngủ ngon',cat:'salutations',ex:'Chúc ngủ ngon ! À demain.'},
+  {fr:'Au revoir',vi:'Tạm biệt',pron:'tam biet',cat:'salutations',ex:'Tạm biệt ! Hẹn gặp lại !'},
+  {fr:'Comment allez-vous ?',vi:'Bạn khỏe không ?',pron:'ban khwè khong',cat:'salutations',ex:'Xin chào ! Bạn khỏe không ?'},
+  {fr:'Je vais bien',vi:'Tôi khỏe',pron:'tôi khwè',cat:'salutations',ex:'Cảm ơn ! Tôi khỏe.'},
+  {fr:'Merci',vi:'Cảm ơn',pron:'kam ơn',cat:'salutations',ex:'Cảm ơn rất nhiều !'},
+  {fr:'Merci beaucoup',vi:'Cảm ơn rất nhiều',pron:'kam ơn rất nhieu',cat:'salutations',ex:'Cảm ơn rất nhiều vì sự giúp đỡ của bạn.'},
+  {fr:'De rien',vi:'Không có gì',pron:'khong co zi',cat:'salutations',ex:'Cảm ơn ! — Không có gì !'},
+  {fr:'S\'il vous plaît',vi:'Làm ơn',pron:'lam ơn',cat:'salutations',ex:'Làm ơn cho tôi một cốc nước.'},
+  {fr:'Excusez-moi',vi:'Xin lỗi',pron:'sin loi',cat:'salutations',ex:'Xin lỗi, tôi không hiểu.'},
+  {fr:'Pardon',vi:'Xin thứ lỗi',pron:'sin thư loi',cat:'salutations',ex:'Xin thứ lỗi, bạn có thể nói lại không ?'},
+  {fr:'Je m\'appelle...',vi:'Tôi tên là...',pron:'tôi ten la',cat:'salutations',ex:'Xin chào ! Tôi tên là Marie.'},
+  {fr:'Enchanté(e)',vi:'Rất vui được gặp bạn',pron:'rất vui được gap ban',cat:'salutations',ex:'Tôi tên là Pierre. Rất vui được gặp bạn !'},
+  {fr:'À bientôt',vi:'Hẹn gặp lại',pron:'hen gap lai',cat:'salutations',ex:'Tạm biệt ! Hẹn gặp lại sớm nhé !'},
+  {fr:'À tout à l\'heure',vi:'Hẹn gặp lại lát nữa',pron:'hen gap lai lat nua',cat:'salutations',ex:'Tôi đi đây. Hẹn gặp lại lát nữa !'},
+  {fr:'Oui',vi:'Vâng / Có',pron:'vang / ko',cat:'salutations',ex:'Vâng, tôi hiểu rồi.'},
+  {fr:'Non',vi:'Không',pron:'khong',cat:'salutations',ex:'Không, cảm ơn.'},
+  {fr:'Je ne comprends pas',vi:'Tôi không hiểu',pron:'tôi khong hieu',cat:'salutations',ex:'Xin lỗi, tôi không hiểu. Bạn nói chậm hơn được không ?'},
+  {fr:'Vous parlez français ?',vi:'Bạn có nói tiếng Pháp không ?',pron:'ban ko noi tieng phap khong',cat:'salutations',ex:'Xin chào ! Bạn có nói tiếng Pháp không ?'},
+  // FAMILLE
+  {fr:'La famille',vi:'Gia đình',pron:'zia dinh',cat:'famille',ex:'Gia đình tôi có bốn người.'},
+  {fr:'Le père',vi:'Bố / Ba',pron:'bo / ba',cat:'famille',ex:'Bố tôi là bác sĩ.'},
+  {fr:'La mère',vi:'Mẹ',pron:'me',cat:'famille',ex:'Mẹ tôi rất tốt.'},
+  {fr:'Le fils',vi:'Con trai',pron:'kon trai',cat:'famille',ex:'Con trai tôi tên là Nam.'},
+  {fr:'La fille',vi:'Con gái',pron:'kon gai',cat:'famille',ex:'Con gái tôi học giỏi.'},
+  {fr:'Le frère',vi:'Anh / Em trai',pron:'anh / em trai',cat:'famille',ex:'Anh trai tôi sống ở Hà Nội.'},
+  {fr:'La sœur',vi:'Chị / Em gái',pron:'chi / em gai',cat:'famille',ex:'Em gái tôi học ở Sài Gòn.'},
+  {fr:'Le grand-père',vi:'Ông',pron:'ong',cat:'famille',ex:'Ông tôi đã 80 tuổi.'},
+  {fr:'La grand-mère',vi:'Bà',pron:'ba',cat:'famille',ex:'Bà tôi nấu ăn rất ngon.'},
+  {fr:'L\'oncle',vi:'Chú / Bác',pron:'chu / bak',cat:'famille',ex:'Chú tôi là giáo viên.'},
+  {fr:'La tante',vi:'Cô / Dì',pron:'ko / zi',cat:'famille',ex:'Cô tôi sống ở Đà Nẵng.'},
+  {fr:'Le mari',vi:'Chồng',pron:'chong',cat:'famille',ex:'Chồng tôi rất tốt bụng.'},
+  {fr:'La femme',vi:'Vợ',pron:'vơ',cat:'famille',ex:'Vợ tôi là bác sĩ.'},
+  {fr:'Le bébé',vi:'Em bé',pron:'em be',cat:'famille',ex:'Em bé ngủ rồi.'},
+  {fr:'Les enfants',vi:'Những đứa trẻ',pron:'nhung dua tre',cat:'famille',ex:'Những đứa trẻ đang chơi.'},
+  {fr:'Le cousin / la cousine',vi:'Anh chị em họ',pron:'anh chi em ho',cat:'famille',ex:'Anh họ tôi sống ở Pháp.'},
+  {fr:'Les parents',vi:'Bố mẹ',pron:'bo me',cat:'famille',ex:'Bố mẹ tôi sống ở Hà Nội.'},
+  {fr:'Le petit-fils',vi:'Cháu trai',pron:'chau trai',cat:'famille',ex:'Cháu trai tôi rất thông minh.'},
+  // NOURRITURE
+  {fr:'Manger',vi:'Ăn',pron:'an',cat:'nourriture',ex:'Bạn muốn ăn gì ?'},
+  {fr:'Boire',vi:'Uống',pron:'uong',cat:'nourriture',ex:'Bạn muốn uống gì ?'},
+  {fr:'Le riz',vi:'Cơm',pron:'kom',cat:'nourriture',ex:'Tôi muốn ăn cơm.'},
+  {fr:'Les nouilles',vi:'Mì / Bún',pron:'mi / bun',cat:'nourriture',ex:'Phở là một loại bún.'},
+  {fr:'Le poulet',vi:'Gà',pron:'ga',cat:'nourriture',ex:'Tôi thích thịt gà.'},
+  {fr:'Le poisson',vi:'Cá',pron:'ka',cat:'nourriture',ex:'Cá này rất tươi.'},
+  {fr:'Le porc',vi:'Thịt lợn',pron:'thit lon',cat:'nourriture',ex:'Tôi không ăn thịt lợn.'},
+  {fr:'Les légumes',vi:'Rau',pron:'zau',cat:'nourriture',ex:'Ăn nhiều rau rất tốt cho sức khỏe.'},
+  {fr:'Les fruits',vi:'Hoa quả / Trái cây',pron:'hwa kwa / trai kay',cat:'nourriture',ex:'Việt Nam có nhiều loại trái cây ngon.'},
+  {fr:'L\'eau',vi:'Nước',pron:'nuoc',cat:'nourriture',ex:'Cho tôi một chai nước.'},
+  {fr:'Le café',vi:'Cà phê',pron:'ka phe',cat:'nourriture',ex:'Cà phê Việt Nam rất ngon.'},
+  {fr:'Le thé',vi:'Trà',pron:'tra',cat:'nourriture',ex:'Bạn thích uống trà không ?'},
+  {fr:'La bière',vi:'Bia',pron:'bia',cat:'nourriture',ex:'Một chai bia, làm ơn.'},
+  {fr:'Le pain',vi:'Bánh mì',pron:'banh mi',cat:'nourriture',ex:'Bánh mì Việt Nam rất ngon.'},
+  {fr:'C\'est délicieux',vi:'Ngon lắm',pron:'ngon lam',cat:'nourriture',ex:'Phở này ngon lắm !'},
+  {fr:'Le restaurant',vi:'Nhà hàng',pron:'nha hang',cat:'nourriture',ex:'Nhà hàng này có đồ ăn ngon.'},
+  {fr:'L\'addition',vi:'Tính tiền',pron:'tinh tien',cat:'nourriture',ex:'Cho tôi tính tiền.'},
+  {fr:'Le menu',vi:'Thực đơn',pron:'thuk don',cat:'nourriture',ex:'Cho tôi xem thực đơn.'},
+  {fr:'Le sucre',vi:'Đường',pron:'duong',cat:'nourriture',ex:'Cho ít đường thôi.'},
+  {fr:'Le sel',vi:'Muối',pron:'muoi',cat:'nourriture',ex:'Cho thêm muối vào.'},
+  {fr:'La sauce',vi:'Nước chấm',pron:'nuoc cham',cat:'nourriture',ex:'Nước chấm là quan trọng trong ẩm thực Việt.'},
+  {fr:'Les crevettes',vi:'Tôm',pron:'tom',cat:'nourriture',ex:'Tôm này rất tươi.'},
+  {fr:'Le bœuf',vi:'Thịt bò',pron:'thit bo',cat:'nourriture',ex:'Tôi muốn phở bò.'},
+  {fr:'Le lait',vi:'Sữa',pron:'sua',cat:'nourriture',ex:'Tôi uống sữa mỗi sáng.'},
+  {fr:'L\'œuf',vi:'Trứng',pron:'trung',cat:'nourriture',ex:'Một quả trứng luộc.'},
+  // VOYAGE
+  {fr:'L\'avion',vi:'Máy bay',pron:'may bay',cat:'voyage',ex:'Máy bay đến lúc mấy giờ ?'},
+  {fr:'L\'aéroport',vi:'Sân bay',pron:'san bay',cat:'voyage',ex:'Sân bay Nội Bài ở Hà Nội.'},
+  {fr:'Le passeport',vi:'Hộ chiếu',pron:'ho chieu',cat:'voyage',ex:'Bạn có hộ chiếu không ?'},
+  {fr:'Le visa',vi:'Thị thực',pron:'thi thuc',cat:'voyage',ex:'Tôi cần xin thị thực.'},
+  {fr:'L\'hôtel',vi:'Khách sạn',pron:'khach san',cat:'voyage',ex:'Khách sạn này 5 sao.'},
+  {fr:'La chambre',vi:'Phòng',pron:'phong',cat:'voyage',ex:'Tôi muốn đặt một phòng.'},
+  {fr:'La clé',vi:'Chìa khóa',pron:'chia khoa',cat:'voyage',ex:'Chìa khóa phòng của tôi đâu ?'},
+  {fr:'Le taxi',vi:'Taxi',pron:'taxi',cat:'voyage',ex:'Gọi taxi cho tôi.'},
+  {fr:'Le bus',vi:'Xe buýt',pron:'se buit',cat:'voyage',ex:'Xe buýt đến lúc mấy giờ ?'},
+  {fr:'La gare',vi:'Nhà ga',pron:'nha ga',cat:'voyage',ex:'Nhà ga trung tâm ở đâu ?'},
+  {fr:'Le billet',vi:'Vé',pron:'ve',cat:'voyage',ex:'Tôi muốn mua vé.'},
+  {fr:'Où est... ?',vi:'... ở đâu ?',pron:'o dau',cat:'voyage',ex:'Bệnh viện ở đâu ?'},
+  {fr:'La carte',vi:'Bản đồ',pron:'ban do',cat:'voyage',ex:'Bạn có bản đồ không ?'},
+  {fr:'Tout droit',vi:'Thẳng',pron:'thang',cat:'voyage',ex:'Đi thẳng 100 mét.'},
+  {fr:'À gauche',vi:'Bên trái',pron:'ben trai',cat:'voyage',ex:'Rẽ trái ở ngã tư.'},
+  {fr:'À droite',vi:'Bên phải',pron:'ben phai',cat:'voyage',ex:'Rẽ phải ở đèn đỏ.'},
+  {fr:'L\'argent',vi:'Tiền',pron:'tien',cat:'voyage',ex:'Tôi cần đổi tiền.'},
+  {fr:'Combien ça coûte ?',vi:'Bao nhiêu tiền ?',pron:'bao nhieu tien',cat:'voyage',ex:'Cái này bao nhiêu tiền ?'},
+  {fr:'C\'est trop cher',vi:'Đắt quá',pron:'dat kwa',cat:'voyage',ex:'Đắt quá ! Bớt không ?'},
+  {fr:'Le marché',vi:'Chợ',pron:'cho',cat:'voyage',ex:'Chợ Bến Thành rất nổi tiếng.'},
+  // CHIFFRES & TEMPS
+  {fr:'Un',vi:'Một',pron:'mot',cat:'chiffres',ex:'Một, hai, ba...'},
+  {fr:'Deux',vi:'Hai',pron:'hai',cat:'chiffres',ex:'Tôi có hai con.'},
+  {fr:'Trois',vi:'Ba',pron:'ba',cat:'chiffres',ex:'Ba giờ sáng.'},
+  {fr:'Quatre',vi:'Bốn',pron:'bon',cat:'chiffres',ex:'Bốn người.'},
+  {fr:'Cinq',vi:'Năm',pron:'nam',cat:'chiffres',ex:'Năm phút nữa.'},
+  {fr:'Six',vi:'Sáu',pron:'sau',cat:'chiffres',ex:'Sáu giờ chiều.'},
+  {fr:'Sept',vi:'Bảy',pron:'bay',cat:'chiffres',ex:'Bảy ngày trong tuần.'},
+  {fr:'Huit',vi:'Tám',pron:'tam',cat:'chiffres',ex:'Tám giờ sáng.'},
+  {fr:'Neuf',vi:'Chín',pron:'chin',cat:'chiffres',ex:'Chín tháng.'},
+  {fr:'Dix',vi:'Mười',pron:'muoi',cat:'chiffres',ex:'Mười năm.'},
+  {fr:'Cent',vi:'Một trăm',pron:'mot tram',cat:'chiffres',ex:'Một trăm đồng.'},
+  {fr:'Mille',vi:'Một nghìn',pron:'mot nghin',cat:'chiffres',ex:'Một nghìn đồng.'},
+  {fr:'Aujourd\'hui',vi:'Hôm nay',pron:'hom nay',cat:'chiffres',ex:'Hôm nay thứ mấy ?'},
+  {fr:'Hier',vi:'Hôm qua',pron:'hom kwa',cat:'chiffres',ex:'Hôm qua trời đẹp.'},
+  {fr:'Demain',vi:'Ngày mai',pron:'ngay mai',cat:'chiffres',ex:'Ngày mai tôi đi Hà Nội.'},
+  {fr:'La semaine',vi:'Tuần',pron:'tuan',cat:'chiffres',ex:'Tuần này bận lắm.'},
+  {fr:'Le mois',vi:'Tháng',pron:'thang',cat:'chiffres',ex:'Tháng này có mấy ngày ?'},
+  {fr:'L\'année',vi:'Năm',pron:'nam',cat:'chiffres',ex:'Năm nay là năm nào ?'},
+  {fr:'Le matin',vi:'Buổi sáng',pron:'buoi sang',cat:'chiffres',ex:'Buổi sáng tôi uống cà phê.'},
+  {fr:'Le soir',vi:'Buổi tối',pron:'buoi toi',cat:'chiffres',ex:'Buổi tối tôi xem phim.'},
+  {fr:'Maintenant',vi:'Bây giờ',pron:'bay gio',cat:'chiffres',ex:'Bây giờ là mấy giờ ?'},
+  {fr:'Toujours',vi:'Luôn luôn',pron:'luon luon',cat:'chiffres',ex:'Tôi luôn luôn học tiếng Việt.'},
+  // CORPS & SANTÉ
+  {fr:'La tête',vi:'Đầu',pron:'dau',cat:'corps',ex:'Tôi bị đau đầu.'},
+  {fr:'Les yeux',vi:'Mắt',pron:'mat',cat:'corps',ex:'Mắt tôi bị đỏ.'},
+  {fr:'Le nez',vi:'Mũi',pron:'mui',cat:'corps',ex:'Mũi tôi bị ngạt.'},
+  {fr:'La bouche',vi:'Miệng',pron:'mieng',cat:'corps',ex:'Miệng tôi bị đau.'},
+  {fr:'Les oreilles',vi:'Tai',pron:'tai',cat:'corps',ex:'Tai tôi bị đau.'},
+  {fr:'Le dos',vi:'Lưng',pron:'lung',cat:'corps',ex:'Lưng tôi bị đau.'},
+  {fr:'La main',vi:'Tay',pron:'tay',cat:'corps',ex:'Tay tôi bị thương.'},
+  {fr:'Le pied',vi:'Chân',pron:'chan',cat:'corps',ex:'Chân tôi bị đau.'},
+  {fr:'Je suis malade',vi:'Tôi bị ốm',pron:'tôi bi om',cat:'corps',ex:'Tôi bị ốm, cần nghỉ.'},
+  {fr:'Le médecin',vi:'Bác sĩ',pron:'bak si',cat:'corps',ex:'Tôi cần gặp bác sĩ.'},
+  {fr:'L\'hôpital',vi:'Bệnh viện',pron:'benh vien',cat:'corps',ex:'Bệnh viện gần đây ở đâu ?'},
+  {fr:'La pharmacie',vi:'Nhà thuốc',pron:'nha thuoc',cat:'corps',ex:'Nhà thuốc mở cửa chưa ?'},
+  {fr:'Le médicament',vi:'Thuốc',pron:'thuoc',cat:'corps',ex:'Tôi cần mua thuốc.'},
+  {fr:'J\'ai de la fièvre',vi:'Tôi bị sốt',pron:'tôi bi sot',cat:'corps',ex:'Tôi bị sốt 38 độ.'},
+  {fr:'J\'ai mal à...',vi:'Tôi đau...',pron:'tôi dau',cat:'corps',ex:'Tôi đau bụng.'},
+  {fr:'Les dents',vi:'Răng',pron:'rang',cat:'corps',ex:'Răng tôi bị đau.'},
+  {fr:'Le ventre',vi:'Bụng',pron:'bung',cat:'corps',ex:'Tôi bị đau bụng.'},
+  {fr:'L\'allergie',vi:'Dị ứng',pron:'zi ung',cat:'corps',ex:'Tôi bị dị ứng với hải sản.'},
+  // VILLE
+  {fr:'La rue',vi:'Đường phố',pron:'duong pho',cat:'ville',ex:'Đường phố Hà Nội rất đông.'},
+  {fr:'La place',vi:'Quảng trường',pron:'kwang truong',cat:'ville',ex:'Quảng trường Ba Đình ở Hà Nội.'},
+  {fr:'Le parc',vi:'Công viên',pron:'kong vien',cat:'ville',ex:'Công viên Hồ Tây rất đẹp.'},
+  {fr:'La banque',vi:'Ngân hàng',pron:'ngan hang',cat:'ville',ex:'Ngân hàng ở đâu ?'},
+  {fr:'La poste',vi:'Bưu điện',pron:'buu dien',cat:'ville',ex:'Bưu điện gần đây ở đâu ?'},
+  {fr:'Le supermarché',vi:'Siêu thị',pron:'sieu thi',cat:'ville',ex:'Siêu thị Big C rất lớn.'},
+  {fr:'L\'école',vi:'Trường học',pron:'truong hoc',cat:'ville',ex:'Trường học gần nhà tôi.'},
+  {fr:'La bibliothèque',vi:'Thư viện',pron:'thu vien',cat:'ville',ex:'Thư viện quốc gia Hà Nội.'},
+  {fr:'Le musée',vi:'Bảo tàng',pron:'bao tang',cat:'ville',ex:'Bảo tàng Hồ Chí Minh rất thú vị.'},
+  {fr:'L\'église',vi:'Nhà thờ',pron:'nha tho',cat:'ville',ex:'Nhà thờ Đức Bà ở Sài Gòn.'},
+  {fr:'Le temple',vi:'Đền / Chùa',pron:'den / chua',cat:'ville',ex:'Chùa Một Cột ở Hà Nội.'},
+  {fr:'La plage',vi:'Bãi biển',pron:'bai bien',cat:'ville',ex:'Bãi biển Đà Nẵng rất đẹp.'},
+  {fr:'La montagne',vi:'Núi',pron:'nui',cat:'ville',ex:'Núi Fansipan là đỉnh cao nhất.'},
+  {fr:'La rivière',vi:'Sông',pron:'song',cat:'ville',ex:'Sông Mekong rất dài.'},
+  {fr:'Le lac',vi:'Hồ',pron:'ho',cat:'ville',ex:'Hồ Hoàn Kiếm ở Hà Nội.'},
+  {fr:'Le village',vi:'Làng',pron:'lang',cat:'ville',ex:'Làng Hội An rất đẹp.'},
+  {fr:'La capitale',vi:'Thủ đô',pron:'thu do',cat:'ville',ex:'Hà Nội là thủ đô của Việt Nam.'},
+  {fr:'Le quartier',vi:'Khu phố',pron:'khu pho',cat:'ville',ex:'Khu phố cổ Hà Nội.'},
+  {fr:'L\'ambassade',vi:'Đại sứ quán',pron:'dai su kwan',cat:'ville',ex:'Đại sứ quán Pháp ở đâu ?'},
+  {fr:'Le commissariat',vi:'Đồn cảnh sát',pron:'don canh sat',cat:'ville',ex:'Đồn cảnh sát gần đây ở đâu ?'},
+  // COULEURS
+  {fr:'Rouge',vi:'Đỏ',pron:'do',cat:'couleurs',ex:'Hoa hồng đỏ rất đẹp.'},
+  {fr:'Bleu',vi:'Xanh lam',pron:'sanh lam',cat:'couleurs',ex:'Trời xanh lam hôm nay.'},
+  {fr:'Vert',vi:'Xanh lá',pron:'sanh la',cat:'couleurs',ex:'Lá cây xanh lá.'},
+  {fr:'Jaune',vi:'Vàng',pron:'vang',cat:'couleurs',ex:'Hoa vàng rất đẹp.'},
+  {fr:'Blanc',vi:'Trắng',pron:'trang',cat:'couleurs',ex:'Áo trắng của học sinh.'},
+  {fr:'Noir',vi:'Đen',pron:'den',cat:'couleurs',ex:'Mèo đen này đáng yêu.'},
+  {fr:'Rose',vi:'Hồng',pron:'hong',cat:'couleurs',ex:'Hoa hồng màu hồng.'},
+  {fr:'Orange',vi:'Cam',pron:'kam',cat:'couleurs',ex:'Quả cam màu cam.'},
+  {fr:'Violet',vi:'Tím',pron:'tim',cat:'couleurs',ex:'Áo tím rất đẹp.'},
+  {fr:'Marron',vi:'Nâu',pron:'nau',cat:'couleurs',ex:'Gấu nâu.'},
+  {fr:'Gris',vi:'Xám',pron:'sam',cat:'couleurs',ex:'Trời xám hôm nay.'},
+  {fr:'Grand',vi:'To / Lớn',pron:'to / lon',cat:'couleurs',ex:'Nhà này rất to.'},
+  {fr:'Petit',vi:'Nhỏ / Bé',pron:'nho / be',cat:'couleurs',ex:'Con mèo nhỏ này đáng yêu.'},
+  {fr:'Beau / Belle',vi:'Đẹp',pron:'dep',cat:'couleurs',ex:'Cô ấy rất đẹp.'},
+  // METEO
+  {fr:'Il fait chaud',vi:'Trời nóng',pron:'troi nong',cat:'meteo',ex:'Mùa hè trời nóng lắm.'},
+  {fr:'Il fait froid',vi:'Trời lạnh',pron:'troi lanh',cat:'meteo',ex:'Mùa đông trời lạnh.'},
+  {fr:'Il pleut',vi:'Trời mưa',pron:'troi mua',cat:'meteo',ex:'Hôm nay trời mưa.'},
+  {fr:'Le soleil',vi:'Mặt trời',pron:'mat troi',cat:'meteo',ex:'Mặt trời mọc lúc 6 giờ.'},
+  {fr:'Le vent',vi:'Gió',pron:'gio',cat:'meteo',ex:'Hôm nay có gió.'},
+  {fr:'Le nuage',vi:'Mây',pron:'may',cat:'meteo',ex:'Mây trắng trên trời.'},
+  {fr:'La pluie',vi:'Mưa',pron:'mua',cat:'meteo',ex:'Mưa nhiều vào mùa hè.'},
+  {fr:'L\'été',vi:'Mùa hè',pron:'mua he',cat:'meteo',ex:'Mùa hè ở Việt Nam rất nóng.'},
+  {fr:'L\'hiver',vi:'Mùa đông',pron:'mua dong',cat:'meteo',ex:'Mùa đông ở Hà Nội lạnh.'},
+  {fr:'Le printemps',vi:'Mùa xuân',pron:'mua suan',cat:'meteo',ex:'Mùa xuân rất đẹp.'},
+  {fr:'L\'automne',vi:'Mùa thu',pron:'mua thu',cat:'meteo',ex:'Mùa thu lá rụng.'},
+  {fr:'L\'arc-en-ciel',vi:'Cầu vồng',pron:'kau vong',cat:'meteo',ex:'Cầu vồng sau cơn mưa.'},
+  {fr:'La tempête',vi:'Bão',pron:'bao',cat:'meteo',ex:'Bão sắp đến.'},
+  {fr:'L\'humidité',vi:'Độ ẩm',pron:'do am',cat:'meteo',ex:'Độ ẩm cao vào mùa mưa.'},
+  {fr:'Le typhon',vi:'Cơn bão nhiệt đới',pron:'kon bao nhiet doi',cat:'meteo',ex:'Cơn bão nhiệt đới rất nguy hiểm.'},
+  {fr:'La saison des pluies',vi:'Mùa mưa',pron:'mua mua',cat:'meteo',ex:'Mùa mưa ở miền Nam kéo dài.'},
+  // EMOTIONS
+  {fr:'Heureux / Heureuse',vi:'Vui / Hạnh phúc',pron:'vui / hanh phuk',cat:'emotions',ex:'Tôi rất vui hôm nay.'},
+  {fr:'Triste',vi:'Buồn',pron:'buon',cat:'emotions',ex:'Tôi cảm thấy buồn.'},
+  {fr:'En colère',vi:'Tức giận',pron:'tuc gian',cat:'emotions',ex:'Tôi tức giận lắm.'},
+  {fr:'Fatigué(e)',vi:'Mệt',pron:'met',cat:'emotions',ex:'Tôi rất mệt hôm nay.'},
+  {fr:'Surpris(e)',vi:'Ngạc nhiên',pron:'ngac nhien',cat:'emotions',ex:'Tôi rất ngạc nhiên.'},
+  {fr:'Peur',vi:'Sợ',pron:'so',cat:'emotions',ex:'Tôi sợ bóng tối.'},
+  {fr:'Amour',vi:'Tình yêu',pron:'tinh yeu',cat:'emotions',ex:'Tình yêu là đẹp.'},
+  {fr:'J\'aime',vi:'Tôi thích / Tôi yêu',pron:'tôi thich / tôi yeu',cat:'emotions',ex:'Tôi yêu Việt Nam.'},
+  {fr:'Je n\'aime pas',vi:'Tôi không thích',pron:'tôi khong thich',cat:'emotions',ex:'Tôi không thích thời tiết lạnh.'},
+  {fr:'Je veux',vi:'Tôi muốn',pron:'tôi muon',cat:'emotions',ex:'Tôi muốn học tiếng Việt.'},
+  {fr:'Je peux',vi:'Tôi có thể',pron:'tôi ko the',cat:'emotions',ex:'Tôi có thể giúp bạn.'},
+  {fr:'J\'espère',vi:'Tôi hy vọng',pron:'tôi hi vong',cat:'emotions',ex:'Tôi hy vọng gặp bạn sớm.'},
+  {fr:'Content(e)',vi:'Hài lòng',pron:'hai long',cat:'emotions',ex:'Tôi rất hài lòng.'},
+  {fr:'Inquiet / Inquiète',vi:'Lo lắng',pron:'lo lang',cat:'emotions',ex:'Tôi đang lo lắng.'},
+  {fr:'Calme',vi:'Bình tĩnh',pron:'binh tinh',cat:'emotions',ex:'Hãy bình tĩnh.'},
+  {fr:'Enthousiaste',vi:'Hào hứng',pron:'hao hung',cat:'emotions',ex:'Tôi rất hào hứng.'},
+  // TRAVAIL
+  {fr:'Le travail',vi:'Công việc',pron:'kong viek',cat:'travail',ex:'Công việc của tôi rất bận.'},
+  {fr:'Le bureau',vi:'Văn phòng',pron:'van phong',cat:'travail',ex:'Tôi làm việc ở văn phòng.'},
+  {fr:'Le directeur',vi:'Giám đốc',pron:'ziam dok',cat:'travail',ex:'Giám đốc của tôi rất tốt.'},
+  {fr:'Le collègue',vi:'Đồng nghiệp',pron:'dong nghiep',cat:'travail',ex:'Đồng nghiệp của tôi thân thiện.'},
+  {fr:'La réunion',vi:'Cuộc họp',pron:'kuok hop',cat:'travail',ex:'Tôi có cuộc họp lúc 9 giờ.'},
+  {fr:'Le salaire',vi:'Lương',pron:'luong',cat:'travail',ex:'Lương tôi tăng rồi.'},
+  {fr:'L\'ordinateur',vi:'Máy tính',pron:'may tinh',cat:'travail',ex:'Máy tính của tôi bị hỏng.'},
+  {fr:'Le téléphone',vi:'Điện thoại',pron:'dien thoai',cat:'travail',ex:'Điện thoại tôi hết pin.'},
+  {fr:'L\'email',vi:'Email / Thư điện tử',pron:'email',cat:'travail',ex:'Tôi nhận được nhiều email.'},
+  {fr:'La réservation',vi:'Đặt chỗ',pron:'dat cho',cat:'travail',ex:'Tôi muốn đặt chỗ.'},
+  {fr:'Le contrat',vi:'Hợp đồng',pron:'hop dong',cat:'travail',ex:'Tôi ký hợp đồng rồi.'},
+  {fr:'Les affaires',vi:'Công việc kinh doanh',pron:'kong viek kinh doanh',cat:'travail',ex:'Công việc kinh doanh tốt.'},
+  {fr:'L\'entreprise',vi:'Công ty',pron:'kong ti',cat:'travail',ex:'Công ty tôi lớn lắm.'},
+  {fr:'Le client',vi:'Khách hàng',pron:'khach hang',cat:'travail',ex:'Khách hàng rất hài lòng.'},
+  {fr:'La formation',vi:'Đào tạo',pron:'dao tao',cat:'travail',ex:'Tôi đang trong quá trình đào tạo.'},
+  {fr:'La candidature',vi:'Hồ sơ xin việc',pron:'ho so sin viek',cat:'travail',ex:'Tôi nộp hồ sơ xin việc rồi.'},
+  {fr:'L\'entretien',vi:'Phỏng vấn',pron:'phong van',cat:'travail',ex:'Tôi có phỏng vấn ngày mai.'},
+  {fr:'Le projet',vi:'Dự án',pron:'zu an',cat:'travail',ex:'Dự án này rất thú vị.'},
+  // QUOTIDIEN
+  {fr:'La maison',vi:'Nhà',pron:'nha',cat:'quotidien',ex:'Nhà tôi ở Hà Nội.'},
+  {fr:'La cuisine',vi:'Bếp',pron:'bep',cat:'quotidien',ex:'Bếp nhà tôi nhỏ.'},
+  {fr:'La chambre',vi:'Phòng ngủ',pron:'phong ngu',cat:'quotidien',ex:'Phòng ngủ tôi thoải mái.'},
+  {fr:'La salle de bain',vi:'Phòng tắm',pron:'phong tam',cat:'quotidien',ex:'Phòng tắm sạch sẽ.'},
+  {fr:'Le salon',vi:'Phòng khách',pron:'phong khach',cat:'quotidien',ex:'Phòng khách rộng.'},
+  {fr:'Se lever',vi:'Thức dậy',pron:'thuc day',cat:'quotidien',ex:'Tôi thức dậy lúc 7 giờ.'},
+  {fr:'Se doucher',vi:'Tắm',pron:'tam',cat:'quotidien',ex:'Tôi tắm mỗi sáng.'},
+  {fr:'Dormir',vi:'Ngủ',pron:'ngu',cat:'quotidien',ex:'Tôi ngủ 8 tiếng mỗi đêm.'},
+  {fr:'Lire',vi:'Đọc',pron:'doc',cat:'quotidien',ex:'Tôi thích đọc sách.'},
+  {fr:'Écrire',vi:'Viết',pron:'viet',cat:'quotidien',ex:'Tôi đang viết email.'},
+  {fr:'Regarder la télé',vi:'Xem TV',pron:'sem TV',cat:'quotidien',ex:'Tôi xem TV mỗi tối.'},
+  {fr:'Faire du sport',vi:'Thể dục',pron:'the duk',cat:'quotidien',ex:'Tôi tập thể dục mỗi sáng.'},
+  {fr:'Les courses',vi:'Đi mua sắm',pron:'di mua sam',cat:'quotidien',ex:'Tôi đi mua sắm cuối tuần.'},
+  {fr:'Le loyer',vi:'Tiền thuê nhà',pron:'tien thue nha',cat:'quotidien',ex:'Tiền thuê nhà tháng này là bao nhiêu ?'},
+  {fr:'L\'électricité',vi:'Điện',pron:'dien',cat:'quotidien',ex:'Hóa đơn điện cao quá.'},
+  {fr:'Le voisin',vi:'Hàng xóm',pron:'hang som',cat:'quotidien',ex:'Hàng xóm tôi rất thân thiện.'},
+  {fr:'Le chien',vi:'Con chó',pron:'kon cho',cat:'quotidien',ex:'Con chó của tôi tên là Milo.'},
+  {fr:'Le chat',vi:'Con mèo',pron:'kon meo',cat:'quotidien',ex:'Con mèo của tôi màu trắng.'},
+  {fr:'Le marché',vi:'Chợ',pron:'cho',cat:'quotidien',ex:'Tôi đi chợ mỗi sáng.'},
+  {fr:'Nettoyer',vi:'Dọn dẹp',pron:'don dep',cat:'quotidien',ex:'Tôi dọn dẹp nhà cuối tuần.'},
+];
+
+// ===================== LESSONS =====================
+function renderLessons() {
+  const grid = document.getElementById('lesson-grid');
+  const lessons = getLessons();
+  const isFrVi = state.direction === 'fr-vi';
+  document.querySelector('#panel-lessons .section-title').textContent = isFrVi ? 'Programme de leçons — Vietnamien' : 'Chương trình học — Tiếng Pháp';
+  document.querySelector('#panel-lessons .section-sub').textContent = isFrVi ? '18 leçons progressives · Débutant → Avancé' : '18 bài học · Cơ bản → Nâng cao';
+  grid.innerHTML = lessons.map(l => `
+    <div class="lesson-card ${l.done?'done':''} ${l.locked?'locked':''}" onclick="${l.locked?'':('openLesson('+l.n+')')}">
+      <div class="lesson-status">${l.done?'✅':l.locked?'🔒':'📖'}</div>
+      <div class="lesson-num">${isFrVi ? 'Leçon' : 'Bài'} ${l.n}</div>
+      <div class="lesson-title">${l.title}</div>
+      <div class="lesson-desc">${l.desc}</div>
+      <div class="lesson-words">📝 ${l.words} ${isFrVi ? 'mots' : 'từ'}</div>
+      <div class="lesson-meta">${l.tags.map(t=>`<span class="lesson-tag">${t}</span>`).join('')}</div>
+    </div>`).join('');
+}
+
+function openLesson(n) {
+  const lessons = getLessons();
+  const l = lessons.find(x => x.n === n);
+  if (!l) return;
+  showPanel('chat');
+  const isFrVi = state.direction === 'fr-vi';
+  const q = isFrVi
+    ? `Donne-moi une leçon complète en français sur le thème "${l.title}" pour apprendre le vietnamien : ${l.desc}. Inclus du vocabulaire essentiel (${l.words} mots avec prononciation et tons), des exemples de phrases, et des points culturels si pertinent.`
+    : `Hãy dạy tôi một bài học đầy đủ bằng tiếng Việt về chủ đề "${l.title}" để học tiếng Pháp: ${l.desc}. Bao gồm từ vựng cần thiết (${l.words} từ với cách phát âm), ví dụ câu, và các điểm ngữ pháp quan trọng.`;
+  sendQuick(q);
+}
+
+// ===================== QUIZ DATA =====================
+function buildQuizSet() {
+  const shuffled = [...VOCAB].sort(() => Math.random() - 0.5).slice(0, 15);
+  state.quizSet = shuffled;
+  state.quizIndex = 0;
+  state.quizScore = 0;
+  state.quizAnswered = false;
+}
+
+// ===================== XP SYSTEM =====================
+function addXP(amount) {
+  state.xp += amount;
+  const needed = state.level * 100;
+  if (state.xp >= needed) { state.xp -= needed; state.level++; }
+  updateXPBar();
+}
+
+function updateXPBar() {
+  const needed = state.level * 100;
+  document.getElementById('xp-level').textContent = state.level;
+  document.getElementById('xp-current').textContent = state.xp;
+  document.getElementById('xp-max').textContent = needed;
+  document.getElementById('xp-fill').style.width = (state.xp / needed * 100) + '%';
+  document.getElementById('stat-streak').textContent = state.streak;
+  document.getElementById('top-streak').textContent = state.streak;
+  const total = Object.keys(state.wordStates).length;
+  document.getElementById('stat-words').textContent = total;
+  const correct = state.quizResults.correct;
+  const totalQ = state.quizResults.total;
+  document.getElementById('stat-score').textContent = totalQ > 0 ? Math.round(correct/totalQ*100)+'%' : '0%';
+}
+
+// ===================== DIRECTION =====================
+const WELCOME_MSGS = {
+  'fr-vi': `Xin chào ! Je suis votre professeur de <strong>vietnamien</strong> 🌿<br><br>
+Je vais vous apprendre le vietnamien depuis le début. Je peux :<br>
+• <strong>Enseigner du vocabulaire</strong> avec prononciation et tons<br>
+• <strong>Expliquer la grammaire</strong> vietnamienne (tons, structure...)<br>
+• <strong>Corriger vos phrases</strong> et donner des exemples culturels<br>
+• <strong>Répondre à toutes vos questions</strong> sur le vietnamien<br><br>
+Par quoi voulez-vous commencer ?`,
+  'vi-fr': `Xin chào ! Tôi là giáo viên <strong>tiếng Pháp</strong> của bạn 🇫🇷<br><br>
+Tôi sẽ giúp bạn học tiếng Pháp từ đầu. Tôi có thể :<br>
+• <strong>Dạy từ vựng tiếng Pháp</strong> với cách phát âm chi tiết<br>
+• <strong>Giải thích ngữ pháp</strong> (giống từ, chia động từ, các thì...)<br>
+• <strong>Sửa câu</strong> của bạn và đưa ra ví dụ thực tế<br>
+• <strong>Trả lời mọi câu hỏi</strong> về tiếng Pháp và văn hóa Pháp<br><br>
+Bạn muốn bắt đầu từ đâu ?`
+};
+
+const QUICK_ACTIONS = {
+  'fr-vi': [
+    {label:'Comment dire bonjour ?', q:'Comment dit-on bonjour en vietnamien ? Explique les différentes formes selon le contexte.'},
+    {label:'Les tons vietnamiens', q:'Explique-moi les 6 tons vietnamiens avec des exemples clairs pour un francophone.'},
+    {label:'Mots essentiels voyage', q:'Donne-moi 8 mots essentiels pour voyager au Vietnam, avec prononciation et exemple.'},
+    {label:'Se présenter', q:'Comment se présenter en vietnamien ? (nom, âge, nationalité)'},
+    {label:'Nord vs Sud Vietnam', q:"Quelles sont les différences de vocabulaire et d'accent entre le Nord et le Sud du Vietnam ?"},
+    {label:'Les chiffres', q:'Apprends-moi les chiffres de 1 à 10 en vietnamien, avec prononciation et astuces de mémorisation.'},
+  ],
+  'vi-fr': [
+    {label:'Cách chào hỏi bằng tiếng Pháp', q:'Dạy tôi cách chào hỏi bằng tiếng Pháp trong các tình huống khác nhau.'},
+    {label:'Ngữ pháp: giống từ', q:'Giải thích hệ thống giống từ (masculin/féminin) trong tiếng Pháp cho người Việt.'},
+    {label:'Số đếm tiếng Pháp', q:'Dạy tôi đếm số từ 1 đến 20 bằng tiếng Pháp với cách phát âm.'},
+    {label:'Tự giới thiệu bản thân', q:'Dạy tôi cách tự giới thiệu bản thân bằng tiếng Pháp (tên, tuổi, nghề nghiệp).'},
+    {label:'Động từ être và avoir', q:'Giải thích cách dùng động từ "être" và "avoir" trong tiếng Pháp với ví dụ thực tế.'},
+    {label:'Gọi món ở nhà hàng', q:'Dạy tôi từ vựng và câu dùng khi gọi món ở nhà hàng Pháp.'},
+  ]
+};
+
+const LESSONS_FR_VI = [
+  {n:1,title:'Alphabet & Tons',desc:'Les 6 tons vietnamiens et leur prononciation',tags:['Débutant','Phonétique'],done:true,words:15},
+  {n:2,title:'Salutations essentielles',desc:'Bonjour, merci, au revoir — les bases sociales',tags:['Débutant','Social'],done:true,words:20},
+  {n:3,title:'Se présenter',desc:'Nom, âge, nationalité, profession',tags:['Débutant'],done:true,words:18},
+  {n:4,title:'La famille',desc:'Père, mère, enfants — et le système de titres',tags:['Débutant','Famille'],done:false,words:18},
+  {n:5,title:'Chiffres & Argent',desc:'Compter, les prix, négocier au marché',tags:['Débutant','Pratique'],done:false,words:22},
+  {n:6,title:'La nourriture',desc:'Plats, ingrédients, commander au restaurant',tags:['Intermédiaire','Culture'],done:false,words:25},
+  {n:7,title:'Le temps & la météo',desc:'Heures, jours, saisons, expressions météo',tags:['Intermédiaire'],done:false,words:22},
+  {n:8,title:'En ville',desc:'Se repérer, demander son chemin, transports',tags:['Intermédiaire','Voyage'],done:false,words:20},
+  {n:9,title:'La santé',desc:'Corps humain, symptômes, chez le médecin',tags:['Intermédiaire'],done:false,words:18},
+  {n:10,title:'Les émotions',desc:'Exprimer ses sentiments en vietnamien',tags:['Intermédiaire'],done:false,words:16},
+  {n:11,title:'Le travail',desc:'Bureau, réunions, vocabulaire professionnel',tags:['Intermédiaire','Pro'],done:false,words:18},
+  {n:12,title:'La vie quotidienne',desc:'Maison, routine, activités du quotidien',tags:['Intermédiaire'],done:false,words:20},
+  {n:13,title:'Les verbes essentiels',desc:'Aller, vouloir, pouvoir, faire — usage pratique',tags:['Intermédiaire','Grammaire'],done:false,words:20},
+  {n:14,title:'Nord vs Sud Vietnam',desc:'Différences dialectales, accents, vocabulaire régional',tags:['Avancé','Culture'],done:false,locked:true,words:16},
+  {n:15,title:'Politesse & Respect',desc:'Vouvoiement, titres de politesse, hiérarchie',tags:['Avancé','Culture'],done:false,locked:true,words:18},
+  {n:16,title:'Culture & Traditions',desc:'Tết, festivals, coutumes vietnamiennes',tags:['Avancé','Culture'],done:false,locked:true,words:20},
+  {n:17,title:'Expressions idiomatiques',desc:'Proverbes et expressions typiquement vietnamiennes',tags:['Avancé'],done:false,locked:true,words:15},
+  {n:18,title:'Conversation avancée',desc:'Débattre, nuancer, exprimer des opinions',tags:['Avancé'],done:false,locked:true,words:20},
+];
+
+const LESSONS_VI_FR = [
+  {n:1,title:'Âm thanh & Phát âm tiếng Pháp',desc:'Những âm đặc biệt trong tiếng Pháp: R, U, EU, nasal...',tags:['Cơ bản','Phát âm'],done:true,words:15},
+  {n:2,title:'Chào hỏi và xã giao',desc:'Bonjour, merci, au revoir — giao tiếp hằng ngày',tags:['Cơ bản','Giao tiếp'],done:true,words:20},
+  {n:3,title:'Tự giới thiệu',desc:'Tên, tuổi, quốc tịch, nghề nghiệp bằng tiếng Pháp',tags:['Cơ bản'],done:true,words:18},
+  {n:4,title:'Gia đình',desc:'Từ vựng về gia đình và giống từ trong tiếng Pháp',tags:['Cơ bản','Gia đình'],done:false,words:18},
+  {n:5,title:'Số đếm & Tiền bạc',desc:'Đếm số, giá cả, mua sắm bằng tiếng Pháp',tags:['Cơ bản','Thực hành'],done:false,words:22},
+  {n:6,title:'Đồ ăn & Nhà hàng',desc:'Gọi món, thực phẩm, ẩm thực Pháp',tags:['Trung cấp','Văn hóa'],done:false,words:25},
+  {n:7,title:'Thời gian & Thời tiết',desc:'Giờ giấc, ngày tháng, mùa và thời tiết',tags:['Trung cấp'],done:false,words:22},
+  {n:8,title:'Trong thành phố',desc:'Hỏi đường, phương tiện đi lại, địa điểm',tags:['Trung cấp','Du lịch'],done:false,words:20},
+  {n:9,title:'Sức khỏe',desc:'Cơ thể người, triệu chứng, đi khám bác sĩ',tags:['Trung cấp'],done:false,words:18},
+  {n:10,title:'Cảm xúc',desc:'Diễn đạt cảm xúc và suy nghĩ bằng tiếng Pháp',tags:['Trung cấp'],done:false,words:16},
+  {n:11,title:'Công việc',desc:'Văn phòng, cuộc họp, từ vựng chuyên nghiệp',tags:['Trung cấp','Nghề nghiệp'],done:false,words:18},
+  {n:12,title:'Cuộc sống hằng ngày',desc:'Nhà cửa, thói quen, hoạt động thường ngày',tags:['Trung cấp'],done:false,words:20},
+  {n:13,title:'Động từ cơ bản',desc:'Être, avoir, aller, vouloir, pouvoir — sử dụng thực tế',tags:['Trung cấp','Ngữ pháp'],done:false,words:20},
+  {n:14,title:'Các thì trong tiếng Pháp',desc:'Hiện tại, quá khứ (passé composé), tương lai',tags:['Nâng cao','Ngữ pháp'],done:false,locked:true,words:16},
+  {n:15,title:'Lịch sự & Văn hóa Pháp',desc:'Cách xưng hô, phép lịch sự, tập quán người Pháp',tags:['Nâng cao','Văn hóa'],done:false,locked:true,words:18},
+  {n:16,title:'Văn hóa & Ẩm thực Pháp',desc:'Wine, fromage, baguette — văn hóa Pháp thú vị',tags:['Nâng cao','Văn hóa'],done:false,locked:true,words:20},
+  {n:17,title:'Thành ngữ & Biểu đạt',desc:'Những câu nói đặc trưng của người Pháp',tags:['Nâng cao'],done:false,locked:true,words:15},
+  {n:18,title:'Hội thoại nâng cao',desc:'Tranh luận, bày tỏ ý kiến, thảo luận',tags:['Nâng cao'],done:false,locked:true,words:20},
+];
+
+function getLessons() {
+  return state.direction === 'fr-vi' ? LESSONS_FR_VI : LESSONS_VI_FR;
+}
+
+function setDirection(dir) {
+  state.direction = dir;
+  document.getElementById('dir-fr-vi').className = 'dir-btn' + (dir === 'fr-vi' ? ' active' : '');
+  document.getElementById('dir-vi-fr').className = 'dir-btn' + (dir === 'vi-fr' ? ' active' : '');
+  document.getElementById('quiz-dir-label').textContent = dir === 'fr-vi' ? 'FR → VI' : 'VI → FR';
+
+  // Reset chat with new welcome message
+  const chatMsgs = document.getElementById('chat-messages');
+  chatMsgs.innerHTML = `<div class="msg">
+    <div class="msg-avatar ai">🤖</div>
+    <div>
+      <div class="msg-bubble">${WELCOME_MSGS[dir]}</div>
+      <div class="msg-time">Maintenant</div>
+    </div>
+  </div>`;
+
+  // Reset quick actions
+  const qa = document.getElementById('quick-actions');
+  qa.style.display = 'flex';
+  qa.innerHTML = QUICK_ACTIONS[dir].map(a =>
+    `<button class="quick-btn" onclick="sendQuick('${a.q.replace(/'/g,"\\'")}')">${a.label}</button>`
+  ).join('');
+
+  buildQuizSet();
+  renderQuiz();
+  renderLessons();
+}
+
+// ===================== NAVIGATION =====================
+const PANELS = ['chat','lessons','quiz','vocab','flashcards'];
+const TITLES = {
+  chat: ['Professeur IA','Posez n\'importe quelle question en français ou en vietnamien'],
+  lessons: ['Programme de leçons','18 leçons progressives · Débutant → Avancé'],
+  quiz: ['Quiz & Exercices','Testez votre vocabulaire dans les deux sens'],
+  vocab: ['Dictionnaire complet','240 mots · 12 thèmes · FR ↔ VI'],
+  flashcards: ['Flashcards','Mémorisez avec la répétition espacée'],
+};
+
+function showPanel(name) {
+  PANELS.forEach(p => {
+    document.getElementById('panel-'+p).classList.remove('active');
+    document.getElementById('nav-'+p).classList.remove('active');
+  });
+  document.getElementById('panel-'+name).classList.add('active');
+  document.getElementById('nav-'+name).classList.add('active');
+  document.getElementById('page-title').textContent = TITLES[name][0];
+  document.getElementById('page-sub').textContent = TITLES[name][1];
+  if (name === 'vocab') renderVocab();
+  if (name === 'quiz') { buildQuizSet(); renderQuiz(); }
+  if (name === 'lessons') renderLessons();
+  if (name === 'flashcards') renderFlashcards();
+}
+
+// ===================== AI CHAT =====================
+const SYSTEM_PROMPTS = {
+  'fr-vi': `Tu es un professeur expert en linguistique qui enseigne le VIETNAMIEN à des francophones.
+Tu parles UNIQUEMENT en français dans tes réponses (c'est la langue maternelle de l'élève).
+Ta mission : apprendre le vietnamien à quelqu'un qui parle français.
+Quand tu donnes un mot ou une phrase en vietnamien, tu fournis TOUJOURS : le mot en vietnamien, sa prononciation approximative en alphabet latin, sa signification en français, et un exemple de phrase en vietnamien avec traduction.
+Explique les 6 tons vietnamiens (sắc, huyền, nặng, hỏi, ngã, bằng) quand c'est pertinent.
+Tu utilises du markdown simple : **gras**, *italique*, et des émojis pertinents.
+Sois pédagogue, encourageant, et mentionne des aspects culturels vietnamiens quand c'est pertinent.
+Réponds TOUJOURS en français. Sois précis, concis et motivant.`,
+
+  'vi-fr': `Bạn là một giáo viên tiếng Pháp chuyên nghiệp, dạy tiếng Pháp cho người Việt Nam.
+Bạn LUÔN LUÔN trả lời bằng tiếng Việt (đây là ngôn ngữ mẹ đẻ của học sinh).
+Nhiệm vụ của bạn: dạy tiếng Pháp cho người nói tiếng Việt.
+Khi bạn đưa ra một từ hoặc cụm từ tiếng Pháp, hãy LUÔN cung cấp: từ tiếng Pháp, cách phát âm gần đúng, nghĩa tiếng Việt, và một câu ví dụ bằng tiếng Pháp kèm dịch nghĩa tiếng Việt.
+Giải thích ngữ pháp tiếng Pháp (giống từ, chia động từ, thì...) một cách rõ ràng bằng tiếng Việt.
+Sử dụng markdown đơn giản: **in đậm**, *in nghiêng*, và emoji phù hợp.
+Hãy thân thiện, khuyến khích học sinh, và đề cập đến văn hóa Pháp khi phù hợp.
+LUÔN trả lời bằng tiếng Việt. Ngắn gọn, rõ ràng và truyền cảm hứng.`
+};
+
+function getSystemPrompt() {
+  return SYSTEM_PROMPTS[state.direction];
+}
+
+async function callAI(userMessage) {
+  const messages = document.getElementById('chat-messages');
+  // Add user message
+  const userDiv = document.createElement('div');
+  userDiv.className = 'msg user';
+  userDiv.innerHTML = `<div class="msg-avatar user">👤</div><div><div class="msg-bubble">${escapeHTML(userMessage)}</div><div class="msg-time">Maintenant</div></div>`;
+  messages.appendChild(userDiv);
+
+  // Add typing indicator
+  const typingDiv = document.createElement('div');
+  typingDiv.className = 'msg';
+  typingDiv.id = 'typing-indicator';
+  typingDiv.innerHTML = `<div class="msg-avatar ai">🤖</div><div><div class="msg-bubble"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div></div>`;
+  messages.appendChild(typingDiv);
+  messages.scrollTop = messages.scrollHeight;
+
+  document.getElementById('send-btn').disabled = true;
+  state.isTyping = true;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: getSystemPrompt(),
+        messages: [{ role: 'user', content: userMessage }]
+      })
+    });
+    const data = await resp.json();
+    const reply = data.content?.[0]?.text || 'Désolé, une erreur est survenue.';
+
+    // Remove typing
+    document.getElementById('typing-indicator')?.remove();
+
+    // Format reply
+    const formatted = formatMessage(reply);
+    const aiDiv = document.createElement('div');
+    aiDiv.className = 'msg';
+    aiDiv.innerHTML = `<div class="msg-avatar ai">🤖</div><div><div class="msg-bubble">${formatted}</div><div class="msg-time">Maintenant</div></div>`;
+    messages.appendChild(aiDiv);
+    addXP(5);
+  } catch(e) {
+    document.getElementById('typing-indicator')?.remove();
+    const errDiv = document.createElement('div');
+    errDiv.className = 'msg';
+    errDiv.innerHTML = `<div class="msg-avatar ai">🤖</div><div><div class="msg-bubble" style="color:var(--red)">Erreur de connexion. Vérifiez votre connexion internet.</div></div>`;
+    messages.appendChild(errDiv);
+  }
+
+  document.getElementById('send-btn').disabled = false;
+  state.isTyping = false;
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function formatMessage(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em style="color:var(--gold)">$1</em>')
+    .replace(/^• (.+)$/gm, '<div style="padding:2px 0 2px 12px;border-left:2px solid var(--border2);margin:4px 0">$1</div>')
+    .replace(/\n\n/g, '<br><br>')
+    .replace(/\n/g, '<br>');
+}
+
+function escapeHTML(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function sendMessage() {
+  if (state.isTyping) return;
+  const inp = document.getElementById('chat-input');
+  const msg = inp.value.trim();
+  if (!msg) return;
+  inp.value = '';
+  inp.style.height = 'auto';
+  document.getElementById('quick-actions').style.display = 'none';
+  callAI(msg);
+}
+
+function sendQuick(msg) {
+  document.getElementById('chat-input').value = msg;
+  document.getElementById('quick-actions').style.display = 'none';
+  sendMessage();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('chat-input');
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+  inp.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 140) + 'px';
+  });
+});
+
+// ===================== VOCAB =====================
+let currentVocabFilter = 'all';
+let currentThemeFilter = 'all';
+
+function renderThemeGrid() {
+  const grid = document.getElementById('theme-grid');
+  let html = '<div class="theme-card '+(currentThemeFilter==='all'?'active':'')+'" onclick="setTheme(\'all\',this)"><div class="theme-icon">🌐</div><div class="theme-name">Tous les thèmes</div><div class="theme-count">240 mots</div></div>';
+  THEMES.forEach(t => {
+    html += `<div class="theme-card ${currentThemeFilter===t.id?'active':''}" onclick="setTheme('${t.id}',this)">
+      <div class="theme-icon">${t.icon}</div>
+      <div class="theme-name">${t.name}</div>
+      <div class="theme-count">${t.count} mots</div>
+    </div>`;
+  });
+  grid.innerHTML = html;
+}
+
+function setTheme(id) {
+  currentThemeFilter = id;
+  renderThemeGrid();
+  renderVocabTable();
+}
+
+function setVocabFilter(f, btn) {
+  currentVocabFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderVocabTable();
+}
+
+function filterVocab() { renderVocabTable(); }
+
+function renderVocab() {
+  renderThemeGrid();
+  renderVocabTable();
+}
+
+function renderVocabTable() {
+  const search = document.getElementById('vocab-search')?.value.toLowerCase() || '';
+  const tbody = document.getElementById('vocab-tbody');
+  const dir = state.direction;
+  let filtered = VOCAB.filter(w => {
+    if (currentThemeFilter !== 'all' && w.cat !== currentThemeFilter) return false;
+    if (search && !w.fr.toLowerCase().includes(search) && !w.vi.toLowerCase().includes(search)) return false;
+    const ws = state.wordStates[w.fr] || 'new';
+    if (currentVocabFilter === 'new' && ws !== 'new') return false;
+    if (currentVocabFilter === 'learn' && ws !== 'learn') return false;
+    if (currentVocabFilter === 'known' && ws !== 'known') return false;
+    return true;
+  });
+
+  const theme = THEMES.find(t => t.id === currentThemeFilter);
+
+  tbody.innerHTML = filtered.map(w => {
+    const ws = state.wordStates[w.fr] || 'new';
+    const tagClass = ws === 'known' ? 'tag-known' : ws === 'learn' ? 'tag-learn' : 'tag-new';
+    const tagLabel = ws === 'known' ? '✓ Maîtrisé' : ws === 'learn' ? '⟳ En cours' : '★ Nouveau';
+    const themeObj = THEMES.find(t => t.id === w.cat);
+    const primary = dir === 'fr-vi' ? w.fr : w.vi;
+    const secondary = dir === 'fr-vi' ? w.vi : w.fr;
+    return `<tr>
+      <td><div class="vocab-word">${escapeHTML(primary)}</div></td>
+      <td><div class="vocab-trans">${escapeHTML(secondary)}</div><div class="vocab-pron">/${escapeHTML(w.pron)}/</div><div class="vocab-ex">${escapeHTML(w.ex)}</div></td>
+      <td><span style="font-size:0.78rem;color:var(--text3)">${themeObj ? themeObj.icon + ' ' + themeObj.name : w.cat}</span></td>
+      <td><span class="tag ${tagClass}" onclick="cycleWordState('${w.fr}',this)" style="cursor:pointer">${tagLabel}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function cycleWordState(fr, el) {
+  const cur = state.wordStates[fr] || 'new';
+  const next = cur === 'new' ? 'learn' : cur === 'learn' ? 'known' : 'new';
+  state.wordStates[fr] = next;
+  const tagClass = next === 'known' ? 'tag-known' : next === 'learn' ? 'tag-learn' : 'tag-new';
+  const tagLabel = next === 'known' ? '✓ Maîtrisé' : next === 'learn' ? '⟳ En cours' : '★ Nouveau';
+  el.className = 'tag ' + tagClass;
+  el.textContent = tagLabel;
+  if (next === 'known') addXP(10);
+  updateXPBar();
+}
+
+// ===================== QUIZ =====================
+let quizMode = 'qcm';
+
+function setQuizMode(mode, btn) {
+  quizMode = mode;
+  document.querySelectorAll('.qm-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  buildQuizSet();
+  renderQuiz();
+}
+
+function renderQuiz() {
+  const area = document.getElementById('quiz-area');
+  if (!state.quizSet.length) { buildQuizSet(); }
+  if (state.quizIndex >= state.quizSet.length) {
+    showQuizResult(area);
+    return;
+  }
+  const pct = Math.round(state.quizIndex / state.quizSet.length * 100);
+  const q = state.quizSet[state.quizIndex];
+  const dir = state.direction;
+  const prompt = dir === 'fr-vi' ? q.fr : q.vi;
+  const answer = dir === 'fr-vi' ? q.vi : q.fr;
+  const promptLabel = dir === 'fr-vi' ? 'Traduire en Vietnamien' : 'Traduire en Français';
+  const dirTag = dir === 'fr-vi' ? '🇫🇷 → 🇻🇳' : '🇻🇳 → 🇫🇷';
+
+  let quizContent = '';
+  if (quizMode === 'qcm') {
+    // Build 4 options
+    let opts = [answer];
+    const pool = VOCAB.filter(w => (dir==='fr-vi' ? w.vi : w.fr) !== answer);
+    while (opts.length < 4) {
+      const r = pool[Math.floor(Math.random() * pool.length)];
+      const rAns = dir === 'fr-vi' ? r.vi : r.fr;
+      if (!opts.includes(rAns)) opts.push(rAns);
+    }
+    opts = opts.sort(() => Math.random() - 0.5);
+    const letters = ['A','B','C','D'];
+    quizContent = `
+      <div class="quiz-opts" id="quiz-opts">
+        ${opts.map((o,i) => `<button class="quiz-opt" onclick="checkQCM('${escapeAttr(o)}','${escapeAttr(answer)}',this)">
+          <span class="opt-letter">${letters[i]}</span>${escapeHTML(o)}
+        </button>`).join('')}
+      </div>`;
+  } else if (quizMode === 'input') {
+    quizContent = `
+      <input class="quiz-input" id="quiz-input-field" placeholder="Tapez votre traduction..." autocomplete="off">
+      <button class="quiz-check-btn" onclick="checkInput('${escapeAttr(answer)}')">Vérifier ✓</button>`;
+  } else {
+    // Vrai/Faux
+    const isTrue = Math.random() > 0.5;
+    let shownAnswer = answer;
+    if (!isTrue) {
+      const wrong = VOCAB.filter(w => (dir==='fr-vi'?w.vi:w.fr) !== answer);
+      shownAnswer = dir==='fr-vi' ? wrong[Math.floor(Math.random()*wrong.length)].vi : wrong[Math.floor(Math.random()*wrong.length)].fr;
+    }
+    quizContent = `
+      <div style="text-align:center;font-family:var(--font-display);font-size:1.3rem;margin-bottom:16px;color:var(--accent2);padding:16px;background:var(--surface2);border-radius:8px;border:1px solid var(--border2)">${escapeHTML(shownAnswer)}</div>
+      <div style="display:flex;gap:12px">
+        <button class="quiz-opt" style="flex:1;justify-content:center;font-size:1rem" onclick="checkVF(${isTrue},true,'${escapeAttr(answer)}')">✅ Vrai</button>
+        <button class="quiz-opt" style="flex:1;justify-content:center;font-size:1rem" onclick="checkVF(${isTrue},false,'${escapeAttr(answer)}')">❌ Faux</button>
+      </div>`;
+  }
+
+  area.innerHTML = `
+    <div class="quiz-header">
+      <div class="quiz-progress"><div class="quiz-progress-fill" style="width:${pct}%"></div></div>
+      <div class="quiz-score-badge">✓ ${state.quizScore} / ${state.quizIndex}</div>
+    </div>
+    <div class="quiz-card">
+      <div class="quiz-direction-tag">${dirTag}</div>
+      <div class="quiz-prompt-label">${promptLabel}</div>
+      <div class="quiz-word">${escapeHTML(prompt)}</div>
+      <div class="quiz-hint">Catégorie : ${THEMES.find(t=>t.id===q.cat)?.name || q.cat}</div>
+    </div>
+    ${quizContent}
+    <div class="quiz-feedback" id="quiz-fb"></div>
+    <button class="quiz-next" id="quiz-next-btn" onclick="nextQuizQ()">Question suivante →</button>
+  `;
+
+  if (quizMode === 'input') {
+    const inp = document.getElementById('quiz-input-field');
+    inp?.addEventListener('keydown', e => { if(e.key==='Enter') checkInput(answer); });
+    inp?.focus();
+  }
+}
+
+function escapeAttr(s) { return s.replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+
+function checkQCM(chosen, correct, btn) {
+  if (state.quizAnswered) return;
+  state.quizAnswered = true;
+  document.querySelectorAll('.quiz-opt').forEach(b => {
+    b.disabled = true;
+    const txt = b.textContent.slice(1).trim();
+    if (txt === correct) b.classList.add('correct');
+    else if (b === btn) b.classList.add('wrong');
+  });
+  showQuizFeedback(chosen === correct, correct);
+}
+
+function checkInput(correct) {
+  if (state.quizAnswered) return;
+  const val = document.getElementById('quiz-input-field')?.value.trim() || '';
+  const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+  const isCorrect = norm(val) === norm(correct);
+  state.quizAnswered = true;
+  showQuizFeedback(isCorrect, correct);
+}
+
+function checkVF(isTrue, userAnswer, correct) {
+  if (state.quizAnswered) return;
+  state.quizAnswered = true;
+  const isCorrect = isTrue === userAnswer;
+  showQuizFeedback(isCorrect, correct);
+}
+
+function showQuizFeedback(isCorrect, correct) {
+  const fb = document.getElementById('quiz-fb');
+  state.quizResults.total++;
+  if (isCorrect) {
+    state.quizScore++;
+    state.quizResults.correct++;
+    fb.className = 'quiz-feedback correct';
+    fb.innerHTML = '✅ Bravo ! +10 XP';
+    addXP(10);
+  } else {
+    fb.className = 'quiz-feedback wrong';
+    fb.innerHTML = `❌ La bonne réponse : <strong>${escapeHTML(correct)}</strong>`;
+  }
+  document.getElementById('quiz-next-btn').classList.add('show');
+  updateXPBar();
+}
+
+function nextQuizQ() {
+  state.quizIndex++;
+  state.quizAnswered = false;
+  renderQuiz();
+}
+
+function showQuizResult(area) {
+  const pct = Math.round(state.quizScore / state.quizSet.length * 100);
+  const msg = pct===100 ? 'Parfait ! Vous maîtrisez ces mots !' :
+              pct>=80 ? 'Excellent niveau !' :
+              pct>=60 ? 'Très bien, continuez !' :
+              pct>=40 ? 'Bon début, pratiquez encore !' : 'Courage, chaque erreur est un progrès !';
+  area.innerHTML = `
+    <div class="result-card">
+      <div class="result-big">${state.quizScore}/${state.quizSet.length}</div>
+      <div class="result-lbl">Score final · ${pct}%</div>
+      <div class="result-msg">"${msg}"</div>
+      <div class="result-actions">
+        <button class="btn-primary" onclick="buildQuizSet();state.quizScore=0;renderQuiz()">↩ Nouveau quiz</button>
+        <button class="btn-secondary" onclick="showPanel('vocab')">📚 Revoir vocab</button>
+      </div>
+    </div>`;
+}
+
+
+
+// ===================== FLASHCARDS =====================
+let fcIdx = 0, fcKnown = 0, fcReview = 0, fcFlipped = false;
+let fcSet = [];
+
+function renderFlashcards() {
+  fcSet = [...VOCAB].sort(() => Math.random() - 0.5).slice(0, 30);
+  fcIdx = 0; fcKnown = 0; fcReview = 0; fcFlipped = false;
+  renderFCCard();
+}
+
+function renderFCCard() {
+  const panel = document.getElementById('fc-panel-inner');
+  if (fcIdx >= fcSet.length) {
+    panel.innerHTML = `
+      <div class="section-title">Flashcards terminées ! 🎉</div>
+      <div class="section-sub">Série de 30 cartes</div>
+      <div class="result-card" style="margin-top:24px">
+        <div class="result-big">${fcKnown}</div>
+        <div class="result-lbl">Cartes maîtrisées sur ${fcSet.length}</div>
+        <div class="result-msg">"${fcKnown >= 25 ? 'Excellent !' : fcKnown >= 15 ? 'Bien joué !' : 'Continuez à pratiquer !'}"</div>
+        <div class="result-actions"><button class="btn-primary" onclick="renderFlashcards()">↩ Recommencer</button></div>
+      </div>`;
+    return;
+  }
+  const card = fcSet[fcIdx];
+  const dir = state.direction;
+  const front = dir === 'fr-vi' ? card.fr : card.vi;
+  const back = dir === 'fr-vi' ? card.vi : card.fr;
+  const frontLang = dir === 'fr-vi' ? '🇫🇷 Français' : '🇻🇳 Tiếng Việt';
+  const backLang = dir === 'fr-vi' ? '🇻🇳 Tiếng Việt' : '🇫🇷 Français';
+
+  panel.innerHTML = `
+    <div class="section-title">Flashcards</div>
+    <div class="section-sub">Carte ${fcIdx+1} / ${fcSet.length} · ✅ ${fcKnown} sus · 🔄 ${fcReview} à revoir</div>
+    <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:28px;margin-bottom:16px">
+      <div style="font-size:0.68rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--text3);margin-bottom:16px" id="fc-side-label">${frontLang}</div>
+      <div style="font-family:var(--font-display);font-size:2.4rem;font-weight:700;color:var(--text);text-align:center;margin-bottom:12px" id="fc-main">${escapeHTML(front)}</div>
+      <div id="fc-back-section" style="display:none;border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
+        <div style="font-size:0.68rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">${backLang}</div>
+        <div style="font-family:var(--font-display);font-size:2rem;font-weight:600;color:var(--accent2);text-align:center">${escapeHTML(back)}</div>
+        <div style="font-size:0.82rem;color:var(--text3);text-align:center;margin-top:6px">/${escapeHTML(card.pron)}/</div>
+        <div style="font-size:0.8rem;color:var(--text2);text-align:center;margin-top:10px;font-style:italic;padding:10px;background:var(--surface);border-radius:6px">${escapeHTML(card.ex)}</div>
+      </div>
+    </div>
+    <div id="fc-flip-btn-area" style="text-align:center;margin-bottom:16px">
+      <button class="btn-primary" onclick="flipFC()" id="fc-flip-btn">👆 Voir la traduction</button>
+    </div>
+    <div id="fc-answer-btns" style="display:none;display:none;gap:12px;justify-content:center">
+      <button class="btn-secondary" onclick="fcAnswer(false)" style="flex:1;max-width:160px;border-color:var(--red);color:var(--red)">✗ À revoir</button>
+      <button class="btn-primary" onclick="fcAnswer(true)" style="flex:1;max-width:160px">✓ Je sais !</button>
+    </div>
+    <div style="display:flex;gap:5px;justify-content:center;margin-top:20px;flex-wrap:wrap">
+      ${fcSet.map((_,i) => `<div style="width:8px;height:8px;border-radius:50%;background:${i<fcIdx?'var(--green)':i===fcIdx?'var(--gold)':'var(--border2)'}"></div>`).join('')}
+    </div>`;
+}
+
+function flipFC() {
+  document.getElementById('fc-back-section').style.display = 'block';
+  document.getElementById('fc-flip-btn-area').style.display = 'none';
+  document.getElementById('fc-answer-btns').style.display = 'flex';
+}
+
+function fcAnswer(known) {
+  if (known) { fcKnown++; addXP(8); } else fcReview++;
+  fcIdx++;
+  updateXPBar();
+  renderFCCard();
+}
+
+// ===================== INIT =====================
+updateXPBar();
+renderLessons();
+</script>
+</body>
+</html>
