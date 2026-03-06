@@ -233,12 +233,105 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 
 /* MOBILE */
 @media(max-width:768px){
+  /* LAYOUT */
   .app{grid-template-columns:1fr}
-  .sidebar{position:fixed;left:-260px;top:0;bottom:0;z-index:100;transition:left 0.3s ease;height:100vh}
-  .sidebar.open{left:0}
-  .content{padding:20px}
+  .sidebar{display:none}
+  .main{padding-bottom:72px}
+
+  /* TOPBAR */
+  .topbar{padding:14px 16px;gap:10px}
+  .page-title{font-size:1.15rem}
+  .page-sub{display:none}
+  .streak-badge{padding:5px 10px;font-size:0.75rem}
+
+  /* CONTENT */
+  .content{padding:16px}
+
+  /* CHAT */
+  .chat-layout{height:calc(100dvh - 144px)}
+  .msg-bubble{max-width:88%;font-size:0.85rem;padding:11px 13px}
+  .quick-actions{gap:6px}
+  .quick-btn{font-size:0.72rem;padding:5px 11px}
+  .chat-input{font-size:0.9rem;padding:10px 13px}
+  .send-btn{width:40px;height:40px}
+
+  /* QUIZ */
   .quiz-opts{grid-template-columns:1fr}
-  .theme-grid{grid-template-columns:repeat(2,1fr)}
+  .quiz-mode-tabs{gap:6px}
+  .qm-tab{padding:7px 13px;font-size:0.75rem}
+  .quiz-word{font-size:1.6rem}
+  .quiz-card{padding:24px 20px;min-height:140px}
+
+  /* VOCAB */
+  .theme-grid{grid-template-columns:repeat(2,1fr);gap:8px}
+  .theme-card{padding:12px}
+  .theme-icon{font-size:1.4rem;margin-bottom:4px}
+  .theme-name{font-size:0.8rem}
+  .vocab-controls{flex-wrap:wrap;gap:6px}
+  .search-input{min-width:100%;order:-1}
+  .vocab-table th:nth-child(3),.vocab-table td:nth-child(3){display:none}
+  .vocab-table th:nth-child(4),.vocab-table td:nth-child(4){display:none}
+
+  /* LESSONS */
+  .lesson-grid{grid-template-columns:1fr;gap:10px}
+  .lesson-card{padding:16px}
+
+  /* SECTION */
+  .section-title{font-size:1.2rem}
+  .result-big{font-size:3.5rem}
+  .result-actions{flex-direction:column;align-items:center}
+
+  /* DIR TOGGLE in topbar */
+  .dir-toggle-mobile{display:flex !important}
+}
+
+/* BOTTOM NAV — mobile only */
+.bottom-nav{
+  display:none;
+  position:fixed;
+  bottom:0;left:0;right:0;
+  background:var(--surface);
+  border-top:1px solid var(--border);
+  z-index:200;
+  padding:6px 0 calc(6px + env(safe-area-inset-bottom));
+}
+.bottom-nav-items{
+  display:flex;
+  justify-content:space-around;
+  align-items:center;
+}
+.bn-item{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:6px 10px;border-radius:8px;cursor:pointer;
+  border:none;background:none;color:var(--text3);
+  font-family:var(--font-body);font-size:0.6rem;font-weight:600;
+  letter-spacing:0.05em;text-transform:uppercase;
+  transition:all 0.18s ease;min-width:56px;
+}
+.bn-icon{font-size:1.3rem;line-height:1}
+.bn-item.active{color:var(--accent2)}
+.bn-item.active .bn-icon{transform:scale(1.15)}
+
+/* MOBILE TOPBAR DIR TOGGLE */
+.dir-toggle-mobile{
+  display:none;
+  background:var(--surface2);
+  border-radius:6px;
+  padding:3px;
+  gap:2px;
+  border:1px solid var(--border);
+  flex-shrink:0;
+}
+.dir-btn-m{
+  padding:5px 8px;border:none;border-radius:4px;
+  background:none;color:var(--text3);cursor:pointer;
+  font-family:var(--font-body);font-size:0.7rem;font-weight:700;
+  transition:all 0.18s ease;
+}
+.dir-btn-m.active{background:var(--accent);color:#0C0F0A;}
+
+@media(max-width:768px){
+  .bottom-nav{display:block}
 }
 
 /* BADGE */
@@ -301,6 +394,10 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
     <div>
       <div class="page-title" id="page-title">Professeur IA</div>
       <div class="page-sub" id="page-sub">Posez n'importe quelle question en français ou en vietnamien</div>
+    </div>
+    <div class="dir-toggle-mobile" id="dir-toggle-mobile">
+      <button class="dir-btn-m active" id="dir-m-fr-vi" onclick="setDirection('fr-vi')">🇫🇷→🇻🇳</button>
+      <button class="dir-btn-m" id="dir-m-vi-fr" onclick="setDirection('vi-fr')">🇻🇳→🇫🇷</button>
     </div>
     <div class="streak-badge">🔥 <span id="top-streak">0</span> jours</div>
   </div>
@@ -820,6 +917,8 @@ function setDirection(dir) {
   state.direction = dir;
   document.getElementById('dir-fr-vi').className = 'dir-btn' + (dir === 'fr-vi' ? ' active' : '');
   document.getElementById('dir-vi-fr').className = 'dir-btn' + (dir === 'vi-fr' ? ' active' : '');
+  document.getElementById('dir-m-fr-vi').className = 'dir-btn-m' + (dir === 'fr-vi' ? ' active' : '');
+  document.getElementById('dir-m-vi-fr').className = 'dir-btn-m' + (dir === 'vi-fr' ? ' active' : '');
   document.getElementById('quiz-dir-label').textContent = dir === 'fr-vi' ? 'FR → VI' : 'VI → FR';
 
   // Reset chat with new welcome message
@@ -857,16 +956,20 @@ const TITLES = {
 function showPanel(name) {
   PANELS.forEach(p => {
     document.getElementById('panel-'+p).classList.remove('active');
-    document.getElementById('nav-'+p).classList.remove('active');
+    document.getElementById('nav-'+p)?.classList.remove('active');
+    document.getElementById('bn-'+p)?.classList.remove('active');
   });
   document.getElementById('panel-'+name).classList.add('active');
-  document.getElementById('nav-'+name).classList.add('active');
+  document.getElementById('nav-'+name)?.classList.add('active');
+  document.getElementById('bn-'+name)?.classList.add('active');
   document.getElementById('page-title').textContent = TITLES[name][0];
   document.getElementById('page-sub').textContent = TITLES[name][1];
   if (name === 'vocab') renderVocab();
   if (name === 'quiz') { buildQuizSet(); renderQuiz(); }
   if (name === 'lessons') renderLessons();
   if (name === 'flashcards') renderFlashcards();
+  // Scroll to top on mobile
+  document.querySelector('.content').scrollTop = 0;
 }
 
 // ===================== AI CHAT =====================
@@ -1305,5 +1408,26 @@ function fcAnswer(known) {
 updateXPBar();
 renderLessons();
 </script>
+<!-- BOTTOM NAV (mobile) -->
+<nav class="bottom-nav">
+  <div class="bottom-nav-items">
+    <button class="bn-item active" id="bn-chat" onclick="showPanel('chat')">
+      <span class="bn-icon">🤖</span>Professeur
+    </button>
+    <button class="bn-item" id="bn-lessons" onclick="showPanel('lessons')">
+      <span class="bn-icon">📖</span>Leçons
+    </button>
+    <button class="bn-item" id="bn-quiz" onclick="showPanel('quiz')">
+      <span class="bn-icon">🎯</span>Quiz
+    </button>
+    <button class="bn-item" id="bn-vocab" onclick="showPanel('vocab')">
+      <span class="bn-icon">📚</span>Vocab
+    </button>
+    <button class="bn-item" id="bn-flashcards" onclick="showPanel('flashcards')">
+      <span class="bn-icon">🃏</span>Cartes
+    </button>
+  </div>
+</nav>
+
 </body>
 </html>
