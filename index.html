@@ -1784,17 +1784,12 @@ function speakWord(text, lang) {
   }
 }
 
-// Vietnamien — Google TTS via l'API publique
+// Vietnamien — via proxy Vercel → Google TTS
 function speakVietnamese(text) {
-  const encoded = encodeURIComponent(text);
-  // Utilise l'endpoint public de Google Translate TTS
-  const url = `https://translate.googleapis.com/translate_tts?ie=UTF-8&q=${encoded}&tl=vi&total=1&idx=0&textlen=${text.length}&client=gtx&prev=input&ttsspeed=0.75`;
+  const url = `/api/chat?tts=1&lang=vi&text=${encodeURIComponent(text)}`;
   const audio = new Audio(url);
   audio.volume = 1;
-  audio.play().catch(() => {
-    // Si bloqué, fallback Web Speech
-    speakWebSpeech(text, 'vi-VN', 0.7);
-  });
+  audio.play().catch(() => speakWebSpeech(text, 'vi-VN', 0.7));
 }
 
 // Français — Web Speech natif
