@@ -438,7 +438,15 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .user-badge:hover{border-color:var(--border2);color:var(--text)}
 .user-avatar{width:24px;height:24px;border-radius:50%;background:var(--accent-dim);border:1px solid rgba(143,190,60,0.4);display:grid;place-items:center;font-size:12px}
 
-/* SAVE INDICATOR */
+/* SPEECH */
+.speak-btn{background:none;border:none;cursor:pointer;padding:4px 6px;border-radius:6px;font-size:1rem;color:var(--text3);transition:all 0.18s ease;line-height:1}
+.speak-btn:hover{background:var(--accent-dim);color:var(--accent2)}
+.speak-btn.speaking{color:var(--accent2);animation:pulse 0.8s infinite alternate}
+@keyframes pulse{from{opacity:0.6}to{opacity:1}}
+.mic-btn{background:var(--surface2);border:1.5px solid var(--border2);border-radius:50%;width:44px;height:44px;display:grid;place-items:center;cursor:pointer;font-size:1.2rem;transition:all 0.2s ease;flex-shrink:0}
+.mic-btn:hover{border-color:rgba(143,190,60,0.5);background:var(--accent-dim)}
+.mic-btn.listening{border-color:var(--red);background:var(--red-dim);animation:pulse 0.6s infinite alternate}
+.mic-status{font-size:0.78rem;color:var(--text3);text-align:center;margin-top:6px;min-height:18px}
 .save-indicator{position:fixed;bottom:80px;right:16px;background:var(--surface2);border:1px solid var(--border2);border-radius:99px;padding:6px 14px;font-size:0.75rem;color:var(--text3);z-index:50;opacity:0;transition:opacity 0.3s ease;pointer-events:none}
 .save-indicator.show{opacity:1}
 .badge{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--text2)}
@@ -1314,7 +1322,7 @@ function renderVocabTable() {
     const primary = dir === 'fr-vi' ? w.fr : w.vi;
     const secondary = dir === 'fr-vi' ? w.vi : w.fr;
     return `<tr>
-      <td><div class="vocab-word">${escapeHTML(primary)}</div></td>
+      <td><div class="vocab-word">${escapeHTML(primary)} <button class="speak-btn" onclick="speakWord('${escapeAttr(dir==='fr-vi'?w.vi:w.fr)}','${dir==='fr-vi'?'vi':'fr'}')" title="Écouter">🔊</button></div></td>
       <td><div class="vocab-trans">${escapeHTML(secondary)}</div><div class="vocab-pron">/${escapeHTML(w.pron)}/</div><div class="vocab-ex">${escapeHTML(w.ex)}</div></td>
       <td><span style="font-size:0.78rem;color:var(--text3)">${themeObj ? themeObj.icon + ' ' + themeObj.name : w.cat}</span></td>
       <td><span class="tag ${tagClass}" onclick="cycleWordState('${w.fr}',this)" style="cursor:pointer">${tagLabel}</span></td>
@@ -1381,7 +1389,11 @@ function renderQuiz() {
       </div>`;
   } else if (quizMode === 'input') {
     quizContent = `
-      <input class="quiz-input" id="quiz-input-field" placeholder="Tapez votre traduction..." autocomplete="off">
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
+        <input class="quiz-input" id="quiz-input-field" placeholder="Tapez ou parlez votre traduction..." autocomplete="off" style="margin-bottom:0;flex:1">
+        <button class="mic-btn" id="mic-btn" onclick="toggleMic('${escapeAttr(answer)}')" title="Répondre à la voix">🎤</button>
+      </div>
+      <div class="mic-status" id="mic-status"></div>
       <button class="quiz-check-btn" onclick="checkInput('${escapeAttr(answer)}')">Vérifier ✓</button>`;
   } else {
     // Vrai/Faux
@@ -1407,7 +1419,7 @@ function renderQuiz() {
     <div class="quiz-card">
       <div class="quiz-direction-tag">${dirTag}</div>
       <div class="quiz-prompt-label">${promptLabel}</div>
-      <div class="quiz-word">${escapeHTML(prompt)}</div>
+      <div class="quiz-word">${escapeHTML(prompt)} <button class="speak-btn" onclick="speakWord('${escapeAttr(prompt)}','${dir==='fr-vi'?'fr':'vi'}')" title="Écouter">🔊</button></div>
       <div class="quiz-hint">Catégorie : ${THEMES.find(t=>t.id===q.cat)?.name || q.cat}</div>
     </div>
     ${quizContent}
@@ -1455,15 +1467,18 @@ function checkVF(isTrue, userAnswer, correct) {
 function showQuizFeedback(isCorrect, correct) {
   const fb = document.getElementById('quiz-fb');
   state.quizResults.total++;
+  const answerLang = state.direction === 'fr-vi' ? 'vi' : 'fr';
   if (isCorrect) {
     state.quizScore++;
     state.quizResults.correct++;
     fb.className = 'quiz-feedback correct';
     fb.innerHTML = '✅ Bravo ! +10 XP';
     addXP(10);
+    speakAnswer(correct, answerLang);
   } else {
     fb.className = 'quiz-feedback wrong';
-    fb.innerHTML = `❌ La bonne réponse : <strong>${escapeHTML(correct)}</strong>`;
+    fb.innerHTML = `❌ La bonne réponse : <strong>${escapeHTML(correct)}</strong> <button class="speak-btn" onclick="speakWord('${escapeAttr(correct)}','${answerLang}')">🔊</button>`;
+    speakAnswer(correct, answerLang);
   }
   document.getElementById('quiz-next-btn').classList.add('show');
   updateXPBar();
@@ -1756,6 +1771,108 @@ async function saveLessonDone(lessonNumber) {
     lesson_number: lessonNumber,
     completed_at: new Date().toISOString()
   }, { onConflict: 'user_id,lesson_number' });
+}
+
+// ===================== SPEECH =====================
+
+// Synthèse vocale — lire un mot
+function speakWord(text, lang) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+
+  const utter = new SpeechSynthesisUtterance(text);
+  // Choisir la bonne langue
+  if (lang === 'vi') {
+    utter.lang = 'vi-VN';
+    utter.rate = 0.85; // Un peu plus lent pour bien entendre les tons
+  } else {
+    utter.lang = 'fr-FR';
+    utter.rate = 0.9;
+  }
+  utter.pitch = 1;
+  utter.volume = 1;
+
+  // Animation du bouton
+  const btns = document.querySelectorAll('.speak-btn');
+  btns.forEach(b => {
+    if (b.onclick?.toString().includes(text.substring(0,10))) {
+      b.classList.add('speaking');
+      utter.onend = () => b.classList.remove('speaking');
+    }
+  });
+
+  window.speechSynthesis.speak(utter);
+}
+
+// Prononciation auto après bonne réponse au quiz
+function speakAnswer(text, lang) {
+  if (!window.speechSynthesis) return;
+  setTimeout(() => speakWord(text, lang), 300);
+}
+
+// Reconnaissance vocale
+let recognition = null;
+let isListening = false;
+
+function toggleMic(expectedAnswer) {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    document.getElementById('mic-status').textContent = '❌ Reconnaissance vocale non supportée sur ce navigateur';
+    return;
+  }
+
+  if (isListening) {
+    recognition?.stop();
+    return;
+  }
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+
+  // Langue selon la direction
+  recognition.lang = state.direction === 'fr-vi' ? 'vi-VN' : 'fr-FR';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+
+  const micBtn = document.getElementById('mic-btn');
+  const micStatus = document.getElementById('mic-status');
+  const input = document.getElementById('quiz-input-field');
+
+  recognition.onstart = () => {
+    isListening = true;
+    micBtn?.classList.add('listening');
+    micBtn.textContent = '⏹';
+    micStatus.textContent = '🎤 Parlez maintenant...';
+  };
+
+  recognition.onresult = (e) => {
+    const transcript = Array.from(e.results)
+      .map(r => r[0].transcript).join('');
+    if (input) input.value = transcript;
+    if (e.results[0].isFinal) {
+      micStatus.textContent = '✓ Entendu : ' + transcript;
+    }
+  };
+
+  recognition.onend = () => {
+    isListening = false;
+    micBtn?.classList.remove('listening');
+    if (micBtn) micBtn.textContent = '🎤';
+    // Auto-vérifier après 800ms
+    setTimeout(() => {
+      if (input?.value) checkInput(expectedAnswer);
+    }, 800);
+  };
+
+  recognition.onerror = (e) => {
+    isListening = false;
+    micBtn?.classList.remove('listening');
+    if (micBtn) micBtn.textContent = '🎤';
+    micStatus.textContent = e.error === 'no-speech'
+      ? '⚠️ Aucun son détecté, réessayez'
+      : '❌ Erreur : ' + e.error;
+  };
+
+  recognition.start();
 }
 
 // ===================== INIT =====================
