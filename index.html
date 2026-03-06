@@ -1780,29 +1780,55 @@ function speakWord(text, lang) {
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
 
+  const voices = window.speechSynthesis.getVoices();
   const utter = new SpeechSynthesisUtterance(text);
-  // Choisir la bonne langue
-  if (lang === 'vi') {
-    utter.lang = 'vi-VN';
-    utter.rate = 0.85; // Un peu plus lent pour bien entendre les tons
-  } else {
-    utter.lang = 'fr-FR';
-    utter.rate = 0.9;
-  }
-  utter.pitch = 1;
   utter.volume = 1;
 
-  // Animation du bouton
-  const btns = document.querySelectorAll('.speak-btn');
-  btns.forEach(b => {
-    if (b.onclick?.toString().includes(text.substring(0,10))) {
-      b.classList.add('speaking');
-      utter.onend = () => b.classList.remove('speaking');
+  if (lang === 'vi') {
+    const viVoice = voices.find(v => v.lang.startsWith('vi'));
+    if (viVoice) {
+      // Voix vietnamienne native dispo (iOS Safari)
+      utter.voice = viVoice;
+      utter.lang = 'vi-VN';
+      utter.rate = 0.75;
+      window.speechSynthesis.speak(utter);
+    } else if (window.responsiveVoice) {
+      // Fallback ResponsiveVoice (Chrome desktop/Android)
+      responsiveVoice.speak(text, 'Vietnamese Female', { rate: 0.85, volume: 1 });
+    } else {
+      // Dernier recours — charger ResponsiveVoice dynamiquement
+      loadResponsiveVoice(() => {
+        responsiveVoice.speak(text, 'Vietnamese Female', { rate: 0.85, volume: 1 });
+      });
     }
-  });
-
-  window.speechSynthesis.speak(utter);
+  } else {
+    const frVoice = voices.find(v => v.lang.startsWith('fr')) || null;
+    if (frVoice) utter.voice = frVoice;
+    utter.lang = 'fr-FR';
+    utter.rate = 0.88;
+    window.speechSynthesis.speak(utter);
+  }
 }
+
+function loadResponsiveVoice(callback) {
+  if (document.getElementById('rv-script')) { callback(); return; }
+  const s = document.createElement('script');
+  s.id = 'rv-script';
+  s.src = 'https://code.responsivevoice.org/responsivevoice.js?key=FREE';
+  s.onload = () => setTimeout(callback, 500);
+  document.head.appendChild(s);
+}
+
+// Précharger ResponsiveVoice si pas de voix VN native
+window.speechSynthesis?.addEventListener('voiceschanged', () => {
+  const hasVi = window.speechSynthesis.getVoices().some(v => v.lang.startsWith('vi'));
+  if (!hasVi) loadResponsiveVoice(() => {});
+});
+// Aussi au chargement direct
+setTimeout(() => {
+  const hasVi = window.speechSynthesis?.getVoices().some(v => v.lang.startsWith('vi'));
+  if (!hasVi) loadResponsiveVoice(() => {});
+}, 1000);
 
 // Prononciation auto après bonne réponse au quiz
 function speakAnswer(text, lang) {
