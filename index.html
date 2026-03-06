@@ -1485,6 +1485,9 @@ function showQuizFeedback(isCorrect, correct) {
 }
 
 function nextQuizQ() {
+  // Arrêter le micro si actif
+  if (isListening) { try { recognition?.abort(); } catch(e) {} isListening = false; }
+  currentMicAnswer = '';
   state.quizIndex++;
   state.quizAnswered = false;
   renderQuiz();
@@ -1831,73 +1834,95 @@ function speakAnswer(text, lang) {
   setTimeout(() => speakWord(text, lang), 300);
 }
 
-// Reconnaissance vocale
 let recognition = null;
 let isListening = false;
+let currentMicAnswer = ''; // Réponse attendue stockée globalement
 
 function toggleMic(expectedAnswer) {
   if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    document.getElementById('mic-status').textContent = '❌ Micro non supporté sur ce navigateur';
+    const s = document.getElementById('mic-status');
+    if (s) s.textContent = '❌ Micro non supporté';
     return;
   }
+  currentMicAnswer = expectedAnswer;
 
   if (isListening) {
     recognition?.stop();
     return;
   }
 
-  // Toujours créer une nouvelle instance — évite les bugs entre questions
+  startRecognition();
+}
+
+function startRecognition() {
+  // Nettoyer complètement
   if (recognition) {
-    recognition.abort();
+    try { recognition.abort(); } catch(e) {}
+    recognition.onstart = null;
+    recognition.onresult = null;
+    recognition.onend = null;
+    recognition.onerror = null;
     recognition = null;
+    isListening = false;
   }
 
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SpeechRecognition();
-  recognition.lang = state.direction === 'fr-vi' ? 'vi-VN' : 'fr-FR';
-  recognition.continuous = false;
-  recognition.interimResults = false; // Seulement le résultat final
+  setTimeout(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.lang = state.direction === 'fr-vi' ? 'vi-VN' : 'fr-FR';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
 
-  const micBtn = document.getElementById('mic-btn');
-  const micStatus = document.getElementById('mic-status');
-  const input = document.getElementById('quiz-input-field');
-
-  recognition.onstart = () => {
-    isListening = true;
-    if (micBtn) { micBtn.classList.add('listening'); micBtn.textContent = '⏹'; }
-    if (micStatus) micStatus.textContent = '🎤 Parlez maintenant...';
-  };
-
-  recognition.onresult = (e) => {
-    const transcript = e.results[0][0].transcript.trim();
-    if (input) input.value = transcript;
-    if (micStatus) micStatus.textContent = '✓ Entendu : ' + transcript;
-  };
-
-  recognition.onend = () => {
-    isListening = false;
-    if (micBtn) { micBtn.classList.remove('listening'); micBtn.textContent = '🎤'; }
-    // Vérifier automatiquement si quelque chose a été capturé
-    const val = document.getElementById('quiz-input-field')?.value?.trim();
-    if (val) {
-      setTimeout(() => checkInput(expectedAnswer), 600);
-    } else {
-      if (micStatus) micStatus.textContent = '⚠️ Rien entendu, réessayez';
-    }
-  };
-
-  recognition.onerror = (e) => {
-    isListening = false;
-    if (micBtn) { micBtn.classList.remove('listening'); micBtn.textContent = '🎤'; }
-    const msgs = {
-      'no-speech': '⚠️ Rien entendu, réessayez',
-      'not-allowed': '❌ Autorisez le micro dans votre navigateur',
-      'network': '❌ Erreur réseau',
+    recognition.onstart = () => {
+      isListening = true;
+      const micBtn = document.getElementById('mic-btn');
+      const micStatus = document.getElementById('mic-status');
+      if (micBtn) { micBtn.classList.add('listening'); micBtn.textContent = '⏹'; }
+      if (micStatus) micStatus.textContent = '🎤 Parlez maintenant...';
     };
-    if (micStatus) micStatus.textContent = msgs[e.error] || '❌ Erreur : ' + e.error;
-  };
 
-  recognition.start();
+    recognition.onresult = (e) => {
+      const transcript = e.results[0][0].transcript.trim();
+      const input = document.getElementById('quiz-input-field');
+      const micStatus = document.getElementById('mic-status');
+      if (input) input.value = transcript;
+      if (micStatus) micStatus.textContent = '✓ ' + transcript;
+    };
+
+    recognition.onend = () => {
+      isListening = false;
+      const micBtn = document.getElementById('mic-btn');
+      if (micBtn) { micBtn.classList.remove('listening'); micBtn.textContent = '🎤'; }
+
+      const val = document.getElementById('quiz-input-field')?.value?.trim();
+      if (val && currentMicAnswer) {
+        setTimeout(() => {
+          // Vérifier que le quiz n'a pas déjà avancé
+          if (!state.quizAnswered) checkInput(currentMicAnswer);
+        }, 500);
+      } else {
+        const micStatus = document.getElementById('mic-status');
+        if (micStatus) micStatus.textContent = '⚠️ Rien entendu, réessayez';
+      }
+    };
+
+    recognition.onerror = (e) => {
+      isListening = false;
+      const micBtn = document.getElementById('mic-btn');
+      if (micBtn) { micBtn.classList.remove('listening'); micBtn.textContent = '🎤'; }
+      const micStatus = document.getElementById('mic-status');
+      const msgs = { 'no-speech': '⚠️ Rien entendu', 'not-allowed': '❌ Autorisez le micro', 'aborted': '', 'network': '❌ Erreur réseau' };
+      if (micStatus) micStatus.textContent = msgs[e.error] ?? '❌ ' + e.error;
+    };
+
+    try { recognition.start(); }
+    catch(e) {
+      isListening = false;
+      const micStatus = document.getElementById('mic-status');
+      if (micStatus) micStatus.textContent = '⚠️ Réessayez';
+    }
+  }, 350);
 }
 
 // ===================== INIT =====================
