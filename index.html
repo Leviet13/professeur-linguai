@@ -334,14 +334,72 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
   .bottom-nav{display:block}
 }
 
-/* BADGE */
-.badge-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:28px}
+/* ===== AUTH MODAL ===== */
+.auth-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px}
+.auth-modal{background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:40px;width:100%;max-width:420px;animation:fadeUp 0.3s ease}
+.auth-logo{font-family:var(--font-display);font-size:2rem;font-weight:700;color:var(--accent2);text-align:center;margin-bottom:4px}
+.auth-sub{text-align:center;font-size:0.82rem;color:var(--text3);margin-bottom:28px}
+.auth-tabs{display:flex;background:var(--surface2);border-radius:8px;padding:3px;margin-bottom:24px;gap:3px}
+.auth-tab{flex:1;padding:9px;border:none;border-radius:6px;background:none;color:var(--text3);cursor:pointer;font-family:var(--font-body);font-size:0.82rem;font-weight:600;transition:all 0.18s ease}
+.auth-tab.active{background:var(--accent);color:#0C0F0A}
+.auth-input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;margin-bottom:12px;transition:border-color 0.2s ease}
+.auth-input:focus{border-color:rgba(143,190,60,0.5)}
+.auth-input::placeholder{color:var(--text3)}
+.auth-btn{width:100%;background:var(--accent);color:#0C0F0A;border:none;border-radius:8px;padding:13px;font-family:var(--font-body);font-weight:700;font-size:0.88rem;cursor:pointer;transition:all 0.2s ease;margin-bottom:10px;letter-spacing:0.05em}
+.auth-btn:hover{background:var(--accent2)}
+.auth-btn:disabled{opacity:0.5;cursor:not-allowed}
+.auth-google{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:12px;font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer;transition:all 0.18s ease;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px}
+.auth-google:hover{background:var(--surface);border-color:var(--border2)}
+.auth-divider{display:flex;align-items:center;gap:10px;margin-bottom:16px;color:var(--text3);font-size:0.75rem}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.auth-error{background:var(--red-dim);border:1px solid rgba(224,90,74,0.3);border-radius:6px;padding:10px 14px;font-size:0.82rem;color:var(--red);margin-bottom:12px;display:none}
+.auth-success{background:rgba(26,122,74,0.12);border:1px solid rgba(26,122,74,0.3);border-radius:6px;padding:10px 14px;font-size:0.82rem;color:#6FD4A0;margin-bottom:12px;display:none}
+.auth-skip{text-align:center;font-size:0.78rem;color:var(--text3);cursor:pointer;text-decoration:underline;margin-top:8px}
+.auth-skip:hover{color:var(--text2)}
+
+/* USER BADGE in topbar */
+.user-badge{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:5px 12px;cursor:pointer;transition:all 0.18s ease;font-size:0.78rem;color:var(--text2)}
+.user-badge:hover{border-color:var(--border2);color:var(--text)}
+.user-avatar{width:24px;height:24px;border-radius:50%;background:var(--accent-dim);border:1px solid rgba(143,190,60,0.4);display:grid;place-items:center;font-size:12px}
+
+/* SAVE INDICATOR */
+.save-indicator{position:fixed;bottom:80px;right:16px;background:var(--surface2);border:1px solid var(--border2);border-radius:99px;padding:6px 14px;font-size:0.75rem;color:var(--text3);z-index:50;opacity:0;transition:opacity 0.3s ease;pointer-events:none}
+.save-indicator.show{opacity:1}
 .badge{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--text2)}
 .badge-icon{font-size:1.3rem}
 .badge.earned{border-color:rgba(212,168,71,0.4);background:var(--gold-dim);color:var(--gold)}
 </style>
 </head>
 <body>
+<!-- SUPABASE SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- AUTH MODAL -->
+<div class="auth-overlay" id="auth-overlay" style="display:none">
+  <div class="auth-modal">
+    <div class="auth-logo">LinguAI</div>
+    <div class="auth-sub">Sauvegardez votre progression</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login',this)">Connexion</button>
+      <button class="auth-tab" onclick="switchAuthTab('signup',this)">Inscription</button>
+    </div>
+    <div class="auth-error" id="auth-error"></div>
+    <div class="auth-success" id="auth-success"></div>
+    <button class="auth-google" onclick="loginGoogle()">
+      <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continuer avec Google
+    </button>
+    <div class="auth-divider">ou</div>
+    <input class="auth-input" id="auth-email" type="email" placeholder="Email">
+    <input class="auth-input" id="auth-password" type="password" placeholder="Mot de passe (min. 6 caractères)">
+    <button class="auth-btn" id="auth-submit-btn" onclick="submitAuth()">Se connecter</button>
+    <div class="auth-skip" onclick="skipAuth()">Continuer sans compte →</div>
+  </div>
+</div>
+
+<!-- SAVE INDICATOR -->
+<div class="save-indicator" id="save-indicator">✓ Sauvegardé</div>
+
 <div class="orb1"></div>
 <div class="orb2"></div>
 
@@ -399,7 +457,10 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
       <button class="dir-btn-m active" id="dir-m-fr-vi" onclick="setDirection('fr-vi')">🇫🇷→🇻🇳</button>
       <button class="dir-btn-m" id="dir-m-vi-fr" onclick="setDirection('vi-fr')">🇻🇳→🇫🇷</button>
     </div>
-    <div class="streak-badge">🔥 <span id="top-streak">0</span> jours</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div id="user-badge-wrap"></div>
+      <div class="streak-badge">🔥 <span id="top-streak">0</span> jours</div>
+    </div>
   </div>
 
   <div class="content">
@@ -813,6 +874,7 @@ function addXP(amount) {
   const needed = state.level * 100;
   if (state.xp >= needed) { state.xp -= needed; state.level++; }
   updateXPBar();
+  saveProgression();
 }
 
 function updateXPBar() {
@@ -1173,6 +1235,7 @@ function cycleWordState(fr, el) {
   el.textContent = tagLabel;
   if (next === 'known') addXP(10);
   updateXPBar();
+  saveWordState(fr, next);
 }
 
 // ===================== QUIZ =====================
@@ -1404,9 +1467,198 @@ function fcAnswer(known) {
   renderFCCard();
 }
 
+// ===================== SUPABASE =====================
+const SUPABASE_URL = 'VOTRE_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'VOTRE_SUPABASE_ANON_KEY';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser = null;
+let authMode = 'login';
+
+// Init auth
+async function initAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    currentUser = session.user;
+    updateUserBadge();
+    await loadUserData();
+  } else {
+    // Afficher modal après 1s
+    setTimeout(() => {
+      document.getElementById('auth-overlay').style.display = 'flex';
+    }, 1000);
+  }
+
+  // Écouter les changements d'auth
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session?.user) {
+      currentUser = session.user;
+      document.getElementById('auth-overlay').style.display = 'none';
+      updateUserBadge();
+      await loadUserData();
+    } else if (event === 'SIGNED_OUT') {
+      currentUser = null;
+      updateUserBadge();
+    }
+  });
+}
+
+function switchAuthTab(mode, btn) {
+  authMode = mode;
+  document.querySelectorAll('.auth-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('auth-submit-btn').textContent = mode === 'login' ? 'Se connecter' : "S'inscrire";
+  document.getElementById('auth-error').style.display = 'none';
+  document.getElementById('auth-success').style.display = 'none';
+}
+
+async function loginGoogle() {
+  await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.href }
+  });
+}
+
+async function submitAuth() {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const btn = document.getElementById('auth-submit-btn');
+  const errEl = document.getElementById('auth-error');
+  const sucEl = document.getElementById('auth-success');
+
+  errEl.style.display = 'none';
+  sucEl.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = '...';
+
+  let result;
+  if (authMode === 'login') {
+    result = await sb.auth.signInWithPassword({ email, password });
+  } else {
+    result = await sb.auth.signUp({ email, password });
+  }
+
+  btn.disabled = false;
+  btn.textContent = authMode === 'login' ? 'Se connecter' : "S'inscrire";
+
+  if (result.error) {
+    errEl.textContent = result.error.message;
+    errEl.style.display = 'block';
+  } else if (authMode === 'signup') {
+    sucEl.textContent = '✅ Vérifiez votre email pour confirmer votre compte !';
+    sucEl.style.display = 'block';
+  }
+}
+
+function skipAuth() {
+  document.getElementById('auth-overlay').style.display = 'none';
+}
+
+function updateUserBadge() {
+  const wrap = document.getElementById('user-badge-wrap');
+  if (currentUser) {
+    const email = currentUser.email || '';
+    const initial = email[0]?.toUpperCase() || '?';
+    wrap.innerHTML = `<div class="user-badge" onclick="logout()">
+      <div class="user-avatar">${initial}</div>
+      <span>${email.split('@')[0]}</span>
+      <span style="color:var(--text3)">· Déconnexion</span>
+    </div>`;
+  } else {
+    wrap.innerHTML = `<div class="user-badge" onclick="document.getElementById('auth-overlay').style.display='flex'">
+      <div class="user-avatar">👤</div>
+      <span>Connexion</span>
+    </div>`;
+  }
+}
+
+async function logout() {
+  await sb.auth.signOut();
+  showSaveIndicator('Déconnecté');
+}
+
+// ===== LOAD USER DATA =====
+async function loadUserData() {
+  if (!currentUser) return;
+
+  // Charger progression
+  const { data: prog } = await sb.from('progression')
+    .select('*').eq('user_id', currentUser.id).single();
+  if (prog) {
+    state.xp = prog.xp || 0;
+    state.level = prog.level || 1;
+    state.streak = prog.streak || 0;
+    if (prog.direction) setDirection(prog.direction);
+    updateXPBar();
+  }
+
+  // Charger mots
+  const { data: words } = await sb.from('word_states')
+    .select('*').eq('user_id', currentUser.id);
+  if (words) {
+    words.forEach(w => { state.wordStates[w.word_fr] = w.state; });
+  }
+
+  // Charger leçons
+  const { data: lessons } = await sb.from('lessons_done')
+    .select('*').eq('user_id', currentUser.id);
+  if (lessons) {
+    lessons.forEach(l => {
+      const lesson = LESSONS_FR_VI.find(x => x.n === l.lesson_number);
+      if (lesson) lesson.done = true;
+      const lessonVi = LESSONS_VI_FR.find(x => x.n === l.lesson_number);
+      if (lessonVi) lessonVi.done = true;
+    });
+    renderLessons();
+  }
+
+  showSaveIndicator('Progression chargée ✓');
+}
+
+// ===== SAVE FUNCTIONS =====
+function showSaveIndicator(msg = '✓ Sauvegardé') {
+  const el = document.getElementById('save-indicator');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+async function saveProgression() {
+  if (!currentUser) return;
+  await sb.from('progression').upsert({
+    user_id: currentUser.id,
+    xp: state.xp,
+    level: state.level,
+    streak: state.streak,
+    direction: state.direction,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'user_id' });
+  showSaveIndicator();
+}
+
+async function saveWordState(wordFr, wordState) {
+  if (!currentUser) return;
+  await sb.from('word_states').upsert({
+    user_id: currentUser.id,
+    word_fr: wordFr,
+    state: wordState,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'user_id,word_fr' });
+}
+
+async function saveLessonDone(lessonNumber) {
+  if (!currentUser) return;
+  await sb.from('lessons_done').upsert({
+    user_id: currentUser.id,
+    lesson_number: lessonNumber,
+    completed_at: new Date().toISOString()
+  }, { onConflict: 'user_id,lesson_number' });
+}
+
 // ===================== INIT =====================
 updateXPBar();
 renderLessons();
+initAuth();
 </script>
 <!-- BOTTOM NAV (mobile) -->
 <nav class="bottom-nav">
