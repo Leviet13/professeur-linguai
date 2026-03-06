@@ -1429,8 +1429,10 @@ function renderQuiz() {
 
   if (quizMode === 'input') {
     const inp = document.getElementById('quiz-input-field');
-    inp?.addEventListener('keydown', e => { if(e.key==='Enter') checkInput(answer); });
-    inp?.focus();
+    if (inp) {
+      inp.onkeydown = (e) => { if(e.key==='Enter') checkInput(answer); };
+      inp.focus();
+    }
   }
 }
 
@@ -1800,11 +1802,20 @@ function speakFrench(text) {
   speakWebSpeech(text, 'fr-FR', 0.85);
 }
 
+let voicesReady = false;
+if (window.speechSynthesis) {
+  const checkVoices = () => {
+    if (window.speechSynthesis.getVoices().length > 0) voicesReady = true;
+  };
+  checkVoices();
+  window.speechSynthesis.addEventListener('voiceschanged', checkVoices);
+}
+
 function speakWebSpeech(text, lang, rate) {
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
 
-  function doSpeak() {
+  const doSpeak = () => {
     const voices = window.speechSynthesis.getVoices();
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = lang;
@@ -1813,13 +1824,18 @@ function speakWebSpeech(text, lang, rate) {
     const voice = voices.find(v => v.lang.startsWith(lang.split('-')[0]));
     if (voice) utter.voice = voice;
     window.speechSynthesis.speak(utter);
-  }
+  };
 
-  const voices = window.speechSynthesis.getVoices();
-  if (voices.length === 0) {
-    window.speechSynthesis.onvoiceschanged = doSpeak;
-  } else {
+  if (voicesReady) {
     doSpeak();
+  } else {
+    // Attendre une seule fois
+    const handler = () => {
+      voicesReady = true;
+      window.speechSynthesis.removeEventListener('voiceschanged', handler);
+      doSpeak();
+    };
+    window.speechSynthesis.addEventListener('voiceschanged', handler);
   }
 }
 
@@ -1880,6 +1896,8 @@ function startRecognition() {
       const micStatus = document.getElementById('mic-status');
       if (micBtn) { micBtn.classList.add('listening'); micBtn.textContent = '⏹'; }
       if (micStatus) micStatus.textContent = '🎤 Parlez maintenant...';
+      // Auto-stop après 8s pour éviter que le micro reste bloqué
+      setTimeout(() => { if (isListening) recognition?.stop(); }, 8000);
     };
 
     recognition.onresult = (e) => {
