@@ -1775,47 +1775,51 @@ async function saveLessonDone(lessonNumber) {
 
 // ===================== SPEECH =====================
 
-// Synthèse vocale — fonctionne sur tous les navigateurs
+// Synthèse vocale — Google TTS pour le vietnamien, Web Speech pour le français
 function speakWord(text, lang) {
-  if (!window.speechSynthesis) {
-    showSaveIndicator('⚠️ Audio non supporté');
-    return;
+  if (lang === 'vi') {
+    speakVietnamese(text);
+  } else {
+    speakFrench(text);
   }
+}
+
+// Vietnamien — Google TTS via l'API publique
+function speakVietnamese(text) {
+  const encoded = encodeURIComponent(text);
+  // Utilise l'endpoint public de Google Translate TTS
+  const url = `https://translate.googleapis.com/translate_tts?ie=UTF-8&q=${encoded}&tl=vi&total=1&idx=0&textlen=${text.length}&client=gtx&prev=input&ttsspeed=0.75`;
+  const audio = new Audio(url);
+  audio.volume = 1;
+  audio.play().catch(() => {
+    // Si bloqué, fallback Web Speech
+    speakWebSpeech(text, 'vi-VN', 0.7);
+  });
+}
+
+// Français — Web Speech natif
+function speakFrench(text) {
+  speakWebSpeech(text, 'fr-FR', 0.85);
+}
+
+function speakWebSpeech(text, lang, rate) {
+  if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
 
   function doSpeak() {
     const voices = window.speechSynthesis.getVoices();
     const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = lang;
+    utter.rate = rate;
     utter.volume = 1;
-
-    if (lang === 'vi') {
-      // Chercher voix vietnamienne
-      const viVoice = voices.find(v => v.lang.startsWith('vi'));
-      if (viVoice) {
-        utter.voice = viVoice;
-      }
-      utter.lang = 'vi-VN';
-      utter.rate = 0.7;
-      utter.pitch = 1;
-    } else {
-      const frVoice = voices.find(v => v.lang.startsWith('fr'));
-      if (frVoice) utter.voice = frVoice;
-      utter.lang = 'fr-FR';
-      utter.rate = 0.85;
-      utter.pitch = 1;
-    }
-
-    utter.onerror = (e) => {
-      if (lang === 'vi') showSaveIndicator('⚠️ Installez la voix vietnamienne dans vos paramètres');
-    };
-
+    const voice = voices.find(v => v.lang.startsWith(lang.split('-')[0]));
+    if (voice) utter.voice = voice;
     window.speechSynthesis.speak(utter);
   }
 
-  // Sur Chrome les voix se chargent en async
   const voices = window.speechSynthesis.getVoices();
   if (voices.length === 0) {
-    window.speechSynthesis.onvoiceschanged = () => { doSpeak(); };
+    window.speechSynthesis.onvoiceschanged = doSpeak;
   } else {
     doSpeak();
   }
